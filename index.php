@@ -9,7 +9,7 @@
 <body class="text-secondary">
     <div class="container">
         <div class="row justify-content-center mt-5">
-            <div class="col-md-4 p-4 border rounded" id="login-container">
+            <div class="col-md-4 p-4 m-2 border rounded" id="login-container">
                 <div class="row mt-2">
                     <h3 class="text-center"><i class="fa-solid fa-lock"></i>Login</h3>
                 </div>
