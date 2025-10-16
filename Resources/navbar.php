@@ -7,13 +7,16 @@
     <div class="collapse navbar-collapse" id="collapsibleNavbar">
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link" Home="main.php">Link</a>
+          <a class="nav-link" href="main.php">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="about.php">About Us</a>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="#">Link</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="#">Link</a>
+          <a class="nav-link" href="#">Logout</a>
         </li>
       </ul>
     </div>
