@@ -13,7 +13,7 @@
           <a class="nav-link" href="about.php">About Us</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="#">Link</a>
+          <a class="nav-link" href="appointmentlist.php">Appointment</a>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="#">Logout</a>
