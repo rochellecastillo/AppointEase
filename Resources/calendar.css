@@ -1,0 +1,36 @@
+    /* badge style */
+    .event-count-badge {
+      display: inline-block;
+      font-size: 0.75em;
+      font-weight: 700;
+      color: white;
+      background: #007bff;
+      border-radius: 10px;
+      padding: 2px 6px;
+      margin-top: 4px;
+    }
+
+    /* keep day top layout with space for badge */
+    .fc-daygrid-day-top {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-center;
+      justify-content:center;
+      gap: 4px;
+      min-height: 30px;
+    }
+
+    /* small UI tweaks from your original CSS */
+    .fc-event-title { font-size: 12px !important; font-weight: normal !important; }
+    .fc-col-header-cell-cushion { text-decoration: none !important; font-weight: bold; }
+    .fc-daygrid-event { margin: 1px 0 !important; padding: 2px 4px !important; line-height: 0.7 !important; font-size: 0.7em; text-align: center !important; }
+    .fc-daygrid-day-number { text-decoration: none !important; color: black; font-weight: bold; font-size: 1.2em; }
+    .fc-daygrid-day-number:hover { background-color: #f0f0f0; border-radius: 5px; cursor: pointer; }
+    .fc-daygrid-day-frame { border-radius: 10px !important; overflow: hidden; transition: background-color 0.2s ease; border: 1px solid #d8d8d8ff; }
+    .fc-daygrid-day-frame:hover { background-color: #f8f9fa; cursor: pointer; }
+
+    /* FullCalendar buttons - Blue theme */
+    .fc .fc-button { background-color: #007bff !important; border: none !important; color: white !important; font-weight: bold; border-radius: 6px !important; padding: 5px 10px !important; transition: background-color 0.2s ease; }
+    .fc .fc-button:hover { background-color: #0069d9 !important; }
+    .fc .fc-button-active { background-color: #0056b3 !important; color: #fff !important; }
+    
