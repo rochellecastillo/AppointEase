@@ -15,7 +15,9 @@
             </div>
         </div>
     </div>
-    
+    <?php
+        include_once'Resources/tawkto.php';
+    ?>
 </body>
 </html>
 <style>
