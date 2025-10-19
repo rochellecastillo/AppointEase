@@ -2,4 +2,6 @@
 <script src="/AppointEase/Resources/bootstrap-5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 <link rel="stylesheet" href="/AppointEase/Resources/fontawesome-free-7.0.1/css/all.css">
 <script src="/AppointEase/Resources/sweetalert2@11.js"></script>
-  <link rel="icon" type="image/png" sizes="16x16" href="Resources/Images/logo.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="Resources/Images/logo.png" />
+<script src="/AppointEase/Resources/jquery-3.7.1.min.js"></script>
+<script src="/AppointEase/Resources/jquery.validate.min.js"></script>
