@@ -9,12 +9,23 @@
         <li class="nav-item">
           <a class="nav-link" href="main.php">Home</a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="about.php">About Us</a>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">User</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="adminadduser.php">Add</a></li>
+            <li><a class="dropdown-item" href="#">Show</a></li>
+          </ul>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="appointmentlist.php">Appointment</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="about.php">About Us</a>
+        </li>
+      </ul>
+    </div>
+    <div class="collapse navbar-collapse" id="collapsibleNavbar">
+      <ul class="navbar-nav ms-auto">
         <li class="nav-item">
           <a class="nav-link" href="#">Logout</a>
         </li>
