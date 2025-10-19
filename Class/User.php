@@ -7,7 +7,8 @@ Class User extends Database{
         $stmt->execute([$un]);
         $data=$stmt->fetch(PDO::FETCH_ASSOC);
         if($data){
-            if(password_verify($pw,$data['pw'])){
+            //if(password_verify($pw,$data['password'])){
+            if($pw==$data['password']){
                 return $data;
             }else{
                 return false;
