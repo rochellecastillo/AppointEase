@@ -83,7 +83,7 @@
                     data: {un: un,pw: pw},
                     success: function(response){
                         if(response.success==true){
-                            window.open("main.php","_self");
+                            window.open("loginotp.php","_self");
                         }else{
                             Swal.fire({
                                 title: 'Warning',
