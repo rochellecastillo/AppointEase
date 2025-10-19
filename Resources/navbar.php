@@ -27,7 +27,7 @@
     <div class="collapse navbar-collapse" id="collapsibleNavbar">
       <ul class="navbar-nav ms-auto">
         <li class="nav-item">
-          <a class="nav-link" href="#">Logout</a>
+          <a class="nav-link" href="Resources/logout.php">Logout</a>
         </li>
       </ul>
     </div>
