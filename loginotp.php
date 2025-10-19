@@ -1,5 +1,6 @@
 <?php
 session_start();
+$user_id=$_SESSION['user_id'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -12,24 +13,36 @@ session_start();
 <body class="text-secondary">
     <?php
     require_once'Class/User.php';
+    require_once'Class/OTP.php';
     $u=new User();
-    $data=$u->displayuserinfo($_SESSION['user_id']);
+    $o=new OTP();
+    $data=$u->displayuserinfo($user_id);
+    $otpdata= $o->display($user_id);
+    if ($otpdata && isset($otpdata['otp'])) {
+        echo $otpdata['otp'];
+    }
     if(isset($_POST['btnverify'])){
         $otp=$_POST['otp'];
-        echo'
-            <script>
-                alert("'.$otp.'");
-            </script>
-        ';
+        $verify=$o->validateotp($user_id,$otp);
+        if($verify==true){
+            header('location: main.php');
+        }else{
+            echo'
+                <script>
+                    Swal.fire({
+                        title: "Warning",
+                        text: "Incorrect or expired OTP",
+                        icon: "warning"
+                    });
+                </script>
+            ';
+        }
     }
     ?>
     <form method="POST">
         <div class="container">
             <div class="row justify-content-center mt-5">
                 <div class="col-md-4 p-4 m-2 border rounded" id="login-container">
-                    <div class="row mt-2">
-                        <h3 class="text-center"><i class="fa-solid fa-lock"></i>Login</h3>
-                    </div>
                     <div class="row mt-2">
                         <div class="col-md-12 text-center">
                             <img class="w-50" src="Resources/Images/logo.png" alt="">
@@ -41,7 +54,7 @@ session_start();
                     <div class="row mt-3">
                         <div class="col-md-12">
                             <label for="otp"><i class="fa-solid fa-lock"></i> OTP</label>
-                            <input type="text" class="form-control text-center" name="otp" id="otp" placeholder="Enter 6-digits OTP">
+                            <input type="text" class="form-control text-center" name="otp" id="otp" placeholder="Enter 6-digits OTP" required>
                         </div>
                     </div>
                     <div class="row mt-3">

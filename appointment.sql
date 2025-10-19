@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Oct 16, 2025 at 07:06 AM
+-- Generation Time: Oct 19, 2025 at 10:01 AM
 -- Server version: 8.0.34
 -- PHP Version: 8.2.11
 
@@ -76,6 +76,26 @@ CREATE TABLE `tblnoappointment` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `tblotp`
+--
+
+CREATE TABLE `tblotp` (
+  `id` int NOT NULL,
+  `user_id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `otp` varchar(6) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `timegenerated` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `tblotp`
+--
+
+INSERT INTO `tblotp` (`id`, `user_id`, `otp`, `timegenerated`) VALUES
+(4, 'user0001', '350821', '2025-10-19 17:55:01');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `tblschedule`
 --
 
@@ -106,7 +126,7 @@ CREATE TABLE `tbluser` (
 --
 
 INSERT INTO `tbluser` (`id`, `user_id`, `user_name`, `password`, `user_type`, `status`) VALUES
-(3, 'user0001', 'admin', '1234', 'admin', 1);
+(3, 'user0001', 'admin', '12345678', 'admin', 1);
 
 --
 -- Indexes for dumped tables
@@ -132,6 +152,13 @@ ALTER TABLE `tblinfo`
 ALTER TABLE `tblnoappointment`
   ADD PRIMARY KEY (`id`),
   ADD KEY `doctor_id` (`doctor_id`);
+
+--
+-- Indexes for table `tblotp`
+--
+ALTER TABLE `tblotp`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `tblschedule`
@@ -171,6 +198,12 @@ ALTER TABLE `tblnoappointment`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `tblotp`
+--
+ALTER TABLE `tblotp`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
 -- AUTO_INCREMENT for table `tblschedule`
 --
 ALTER TABLE `tblschedule`
@@ -197,6 +230,12 @@ ALTER TABLE `tblappointment`
 --
 ALTER TABLE `tblnoappointment`
   ADD CONSTRAINT `tblnoappointment_ibfk_1` FOREIGN KEY (`doctor_id`) REFERENCES `tblinfo` (`user_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+--
+-- Constraints for table `tblotp`
+--
+ALTER TABLE `tblotp`
+  ADD CONSTRAINT `tblotp_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `tblinfo` (`user_id`);
 
 --
 -- Constraints for table `tblschedule`
