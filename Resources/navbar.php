@@ -13,7 +13,7 @@
           <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">User</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="adminadduser.php">Add</a></li>
-            <li><a class="dropdown-item" href="#">Show</a></li>
+            <li><a class="dropdown-item" href="adminshowusers.php">Show</a></li>
           </ul>
         </li>
         <li class="nav-item">

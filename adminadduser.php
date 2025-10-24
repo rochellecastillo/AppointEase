@@ -13,7 +13,7 @@
   <div class="container py-4">
     <div class="card mx-auto" id="login-container" style="max-width:900px;">
       <div class="card-body">
-        <h4 class="card-title mb-3">Add Employee</h4>
+        <h4 class="card-title mb-3"><i class="fa-solid fa-user-plus"></i> Add Employee</h4>
 
         <form id="addEmployeeForm" novalidate>
           <div class="row g-2">
@@ -41,7 +41,6 @@
                 <option value="">Select...</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-                <option value="other">Other</option>
               </select>
             </div>
 
@@ -56,7 +55,7 @@
             </div>
 
             <div class="col-12 d-flex justify-content-end mt-3">
-              <button type="submit" class="btn btn-primary" id="btnSubmit">Add Employee</button>
+              <button type="submit" class="btn btn-primary" id="btnSubmit"><i class="fa-solid fa-floppy-disk"></i> Add Employee</button>
             </div>
           </div>
         </form>
@@ -73,14 +72,14 @@
       $('#btnSubmit').prop('disabled', true).text('Saving...');
 
       $.ajax({
-        url: 'add_user.php',
+        url: 'Request/add_user.php',
         type: 'POST',
         data: formData,
         dataType: 'json',
         success: function(resp){
           $('#btnSubmit').prop('disabled', false).text('Add Employee');
           if(resp.success){
-            Swal.fire({ icon: 'success', title: 'Employee Added', text: 'Employee ID: ' + resp.user_id });
+            Swal.fire({ icon: resp.icon, title: 'Add User', text: resp.message });
             $('#addEmployeeForm')[0].reset();
           } else {
             Swal.fire({ icon: 'error', title: 'Error', text: resp.message });
