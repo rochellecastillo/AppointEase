@@ -24,5 +24,41 @@ Class User extends Database{
         $data=$stmt->fetch(PDO::FETCH_ASSOC);
         return $data;
     }
+    public function adduser($ln,$fn,$mn,$bdate,$gender,$address,$contact,$role){
+         try {
+            $idnum = 'U'.date("ymd-") . mt_rand(0, 999);
+            $this->conn->beginTransaction();
+
+            $sql1 = "INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, ?, 1)";
+            $sql2 = "INSERT INTO tblinfo (user_id, last_name, first_name, middle_name, bdate, gender, address, contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmt1 = $this->conn->prepare($sql1);
+            $stmt2 = $this->conn->prepare($sql2);
+            $stmt2->execute([$idnum, $ln, $fn, $mn, $bdate, $gender, $address, $contact]);
+            $stmt1->execute([$idnum, $idnum, $ln, $role]);
+            $this->conn->commit();
+
+            return [
+                'success' => true,
+                'user_id' => $idnum,
+                'message' => 'User added successfully!',
+                'icon'    => 'success'
+            ];
+
+        } catch (PDOException $e) {
+            $this->conn->rollBack();
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'icon'    => 'error'
+            ];
+        }
+    }
+    public function displayallusers(){
+        $sql="select i.*,u.status,u.user_name,u.password,u.user_type from tblinfo i inner join tbluser u on u.user_id=i.user_id order by i.last_name";
+        $stmt=$this->conn->prepare($sql);
+        $stmt->execute();
+        $data=$stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $data;
+    }
 }
 ?>
