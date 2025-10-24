@@ -60,5 +60,23 @@ Class User extends Database{
         $data=$stmt->fetchAll(PDO::FETCH_ASSOC);
         return $data;
     }
+    public function updatestatus($userid,$stat){
+        $stat=$stat=='true' ? 1: 0;
+        $sql="update tbluser set status=? where user_id=?";
+        $stmt=$this->conn->prepare($sql);
+        if($stmt->execute([$stat,$userid])){
+            return([
+                'success' => true,
+                'message' => 'User status changed!',
+                'icon'    => 'success'
+            ]);
+        }else{
+            return([
+                'success' => false,
+                'message' => $this->conn->error,
+                'icon'    => 'error'
+            ]);
+        }
+    }
 }
 ?>
