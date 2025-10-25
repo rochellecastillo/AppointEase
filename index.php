@@ -36,6 +36,11 @@
                             <button class="btn btn-primary rounded-pill form-control"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
                         </div>
                     </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12 text-end">
+                            No account yet? <a href="signup.php">Sign-up</a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

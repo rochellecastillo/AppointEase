@@ -55,7 +55,7 @@ $user_id=$_SESSION['user_id'];
                         </div>
                     </div>
                     <div class="row mt-3">
-                        <h5 class="text-center">Please enter OTP we sent to <?=$data['contact']?></h5>
+                        <h6 class="text-center">A One-Time Password (OTP) has been sent to <?=$data['contact']?></h6>
                     </div>
                     <div class="row mt-3">
                         <div class="col-md-12">
