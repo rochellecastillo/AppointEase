@@ -25,7 +25,13 @@ $user_id=$_SESSION['user_id'];
         $otp=$_POST['otp'];
         $verify=$o->validateotp($user_id,$otp);
         if($verify==true){
-            header('location: main.php');
+            if($_SESSION['role']=='admin'){
+                header('location: main.php');
+            }else if($_SESSION['role']=='user'){
+                header('location: usermain.php');
+            }else if($_SESSION['client']=='user'){
+                header('location: clientmain.php');
+            }
         }else{
             echo'
                 <script>

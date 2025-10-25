@@ -27,6 +27,7 @@ Class User extends Database{
     public function adduser($ln,$fn,$mn,$bdate,$gender,$address,$contact,$role){
          try {
             $idnum = 'U'.date("ymd-") . mt_rand(0, 999);
+            $pw=$ln.mt_rand(00000,99999);
             $this->conn->beginTransaction();
 
             $sql1 = "INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, ?, 1)";
@@ -34,7 +35,7 @@ Class User extends Database{
             $stmt1 = $this->conn->prepare($sql1);
             $stmt2 = $this->conn->prepare($sql2);
             $stmt2->execute([$idnum, $ln, $fn, $mn, $bdate, $gender, $address, $contact]);
-            $stmt1->execute([$idnum, $idnum, $ln, $role]);
+            $stmt1->execute([$idnum, $idnum, $pw, $role]);
             $this->conn->commit();
 
             return [

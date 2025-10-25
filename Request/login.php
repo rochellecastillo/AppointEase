@@ -10,6 +10,7 @@ session_start();
     if($data!=false){
         if($data['status']==1){
             $_SESSION['user_id']=$data['user_id'];
+            $_SESSION['role']=$data['user_type'];
             $o->send($data['user_id']);
             echo json_encode(
                 [
