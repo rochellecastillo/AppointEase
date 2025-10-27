@@ -16,6 +16,26 @@ new Session();
   <?php
     require_once'Class/User.php';
     $u=new User();
+    if(isset($_POST['btnupdate'])){
+      $userid=$_POST['userid'];
+      $ln=$_POST['ln'];
+      $fn=$_POST['fn'];
+      $mn=$_POST['mn'];
+      $gender=$_POST['gender'];
+      $bdate=$_POST['bdate'];
+      $address=$_POST['address'];
+      $contact=$_POST['contact'];
+      $data=$u->updateuserinfo($userid,$ln,$fn,$mn,$bdate,$gender,$address,$contact);
+      echo'
+      <script>
+        Swal.fire({
+          title: "Update Status",
+          text: "'.$data['message'].'",
+          icon: "'.$data['icon'].'"
+        });
+      </script>
+      ';
+    }
     $data=$u->displayallusers();
   ?>
     <div class="container">
@@ -54,8 +74,9 @@ new Session();
                         <td>{$row['contact']}</td>
                         <td class='text-center'><input type='checkbox' class='form-check-input stat' name='stat' {$status} value='{$row['user_id']}'></td>
                         <td class='text-center'>
-                          <button class='btn text-primary' data-bs-toggle='modal' data-bs-target='#myModal'><i class='fa-solid fa-pen-to-square'></i></button>
+                          <button class='btn text-primary btnedit' value='{$row['user_id']}' data-bs-toggle='modal' data-bs-target='#myModal'><i class='fa-solid fa-pen-to-square'></i></button>
                           <button class='btn text-success btnprint' value='{$row['user_id']}' ><i class='fa-solid fa-print'></i></button>
+                          <button class='btn text-danger btnschedule' value='{$row['user_id']}' data-bs-toggle='modal' data-bs-target='#schedmodal'><i class='fa-solid fa-calendar-days'></i></button>
                         </td>
                       </tr>
                     ";
@@ -77,27 +98,28 @@ new Session();
 
           <!-- Modal Header -->
           <div class="modal-header bg-primary text-white">
-            <h4 class="modal-title">Update User Info</h4>
+            <h4 class="modal-title"><i class="fa-solid fa-pencil"></i> Update Doctor's Info</h4>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
 
           <!-- Modal body -->
+          <form method="POST" >
           <div class="modal-body">
             <div class="container">
               <div class="row">
                 <div class="col-md-5">
                   <label for="ln">User ID</label>
-                  <input type="text" class="form-control" name="userid">
+                  <input type="text" class="form-control" name="userid" id="userid" readonly>
                 </div>
               </div>
               <div class="row mt-3">
                 <div class="col-md-4">
                   <label for="ln">Last Name</label>
-                  <input type="text" class="form-control" name="ln" id="ln">
+                  <input type="text" class="form-control" name="ln" id="ln" required>
                 </div>
                 <div class="col-md-4">
                   <label for="ln">First Name</label>
-                  <input type="text" class="form-control" name="fn" id="fn">
+                  <input type="text" class="form-control" name="fn" id="fn" required>
                 </div>
                 <div class="col-md-4">
                   <label for="ln">Middle Name</label>
@@ -114,22 +136,84 @@ new Session();
                 </div>
                 <div class="col-md-4">
                   <label for="bdate">Birth Date</label>
-                  <input type="date" class="form-control" name="bdate" id="bdate">
+                  <input type="date" class="form-control" name="bdate" id="bdate" required>
                 </div>
               </div>
               <div class="row mt-3">
                 <div class="col-md-12">
                   <label for="address">Address</label>
-                  <input type="text" class="form-control" name="address" id="address">
+                  <input type="text" class="form-control" name="address" id="address" required>
+                </div>
+              </div>
+              <div class="row mt-3">
+                <div class="col-md-5">
+                  <label for="contact">Contact</label>
+                  <input type="tel" class="form-control" name="contact" id="contact" required>
                 </div>
               </div>
             </div>
           </div>
-
+          
           <!-- Modal footer -->
           <div class="modal-footer">
+            <button type="submit" class="btn btn-primary" name="btnupdate"><i class="fa-solid fa-floppy-disk"></i> Update</button>
             <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
           </div>
+        </form>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- The Modal -->
+    <div class="modal" id="schedmodal">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+          <!-- Modal Header -->
+          <div class="modal-header bg-primary text-white">
+            <h4 class="modal-title"><i class="fa-solid fa-calendar"></i> Doctor's Schedule</h4>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <!-- Modal body -->
+          <form method="POST" >
+          <div class="modal-body">
+            <div class="container">
+              <div class="row">
+                <div class="d-flex">
+                  <div><img src="Resources/Images/default_profile.webp" height="90px" alt=""></div>
+                  <div>
+                    <div><h3 id="drname">Juan dela Cruz</h3></div>
+                    <div id="userid2">Doctor's ID</div>
+                    <div id="userid2">Medical Specialty</div>
+                  </div>
+                </div>
+              </div>
+              <div class="row mt-3">
+                <div class="col-md-5">
+                  <label for="day">Day</label>
+                  <select class="form-control" name="day" required>
+                      <option selected disabled>-</option>
+                      <option value="1">Monday</option>
+                      <option value="2">Tuesday</option>
+                      <option value="3">Wednesday</option>
+                      <option value="4">Thursday</option>
+                      <option value="5">Friday</option>
+                      <option value="6">Saturday</option>
+                      <option value="7">Sunday</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Modal footer -->
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary" name="btnupdate"><i class="fa-solid fa-floppy-disk"></i> Update</button>
+            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+          </div>
+        </form>
 
         </div>
       </div>
@@ -149,8 +233,30 @@ new Session();
 <script>
   $(document).ready(function(){
     let btnprint=$('.btnprint');
+    let btnschedule=$('.btnschedule');
+    let btnedit=$('.btnedit');
     btnprint.click(function(){
       window.open("Report/printuserdata.php?userid="+$(this).val());
+    });
+    btnedit.click(function(){
+      //let formData = $('#myForm').serialize();
+      $.ajax({
+          url: 'Request/display_user.php',
+          method: 'POST',
+          dataType: 'json',
+          data: {userid: $(this).val()},
+          success: function(response){
+              //alert(response.userid);
+              $('#userid').val(response.userid);
+              $('#ln').val(response.lastname);
+              $('#fn').val(response.firstname);
+              $('#mn').val(response.middlename);
+              $('#gender').val(response.gender);
+              $('#bdate').val(response.bdate);
+              $('#address').val(response.address);
+              $('#contact').val(response.contact);
+          }
+      });
     });
     let chk=$('.stat');
     chk.click(function(){
@@ -177,6 +283,21 @@ new Session();
           }
       });
 
+    });
+    $(".btnschedule").click(function(){
+      $.ajax({
+          url: 'Request/display_user.php',
+          method: 'POST',
+          dataType: 'json',
+          data: {userid: $(this).val()},
+          success: function(response){
+              //alert(response.lastname);
+              /*$('#userid2').val(response.userid);
+              $('#ln2').val(response.lastname);
+              $('#fn2').val(response.firstname);
+              $('#mn2').val(response.middlename);*/
+          }
+      });
     });
   });
 </script>
