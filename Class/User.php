@@ -54,6 +54,24 @@ Class User extends Database{
             ];
         }
     }
+    public function updateuserinfo($userid,$ln,$fn,$mn,$bdate,$gender,$address,$contact){
+        $sql="update tblinfo set last_name=?, first_name=?, middle_name=?, bdate=?, gender=?,address=?,contact=? where user_id=?";
+        $stmt=$this->conn->prepare($sql);
+        if($stmt->execute([$ln,$fn,$mn,$bdate,$gender,$address,$contact,$userid])){
+            return ([
+                'success'=>true,
+                'message'=>'Record Successfully Updated!',
+                'icon'=>'success'
+            ]);
+        }else{
+            return([
+                'success'=>false,
+                'message'=>$this->conn->error,
+                'icon'=>'error'
+            ]);
+        }
+
+    }
     public function displayallusers(){
         $sql="select i.*,u.status,u.user_name,u.password,u.user_type from tblinfo i inner join tbluser u on u.user_id=i.user_id order by i.last_name";
         $stmt=$this->conn->prepare($sql);
