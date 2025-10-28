@@ -14,12 +14,16 @@ $user_id=$_SESSION['user_id'];
     <?php
     require_once'Class/User.php';
     require_once'Class/OTP.php';
+    require_once'Class/SMS.php';
     $u=new User();
     $o=new OTP();
     $data=$u->displayuserinfo($user_id);
     $otpdata= $o->display($user_id);
     if ($otpdata && isset($otpdata['otp'])) {
         echo $otpdata['otp'];
+        $contact=$data['contact'];
+        $message='Your One-Time PIN is '.$otpdata['otp'].'. Please do not share this with anyone';
+        new SMS($contact,$message);
     }
     if(isset($_POST['btnverify'])){
         $otp=$_POST['otp'];
