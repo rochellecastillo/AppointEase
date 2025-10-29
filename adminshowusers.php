@@ -186,15 +186,15 @@ new Session();
                   <div>
                     <div><h3 id="drname">Juan dela Cruz</h3></div>
                     <div id="userid2">Doctor's ID</div>
-                    <div id="userid2">Medical Specialty</div>
+                    <div id="specialty">Medical Specialty</div>
                   </div>
                 </div>
               </div>
               <div class="row mt-3">
-                <div class="col-md-5">
+                <div class="col-md-3">
                   <label for="day">Day</label>
-                  <select class="form-control" name="day" required>
-                      <option selected disabled>-</option>
+                  <select class="form-control" name="day" id="day" required>
+                      <option value=NULL selected disabled>-</option>
                       <option value="1">Monday</option>
                       <option value="2">Tuesday</option>
                       <option value="3">Wednesday</option>
@@ -204,13 +204,29 @@ new Session();
                       <option value="7">Sunday</option>
                   </select>
                 </div>
+                <div class="col-md-3">
+                  <label for="time">Start Time</label>
+                   <input type="time" class="form-control" name="time1" id="time1" required>
+                </div>
+                <div class="col-md-3">
+                  <label for="time">End Time</label>
+                   <input type="time" class="form-control" name="time2" id="time2" required>
+                </div>
+                <div class="col-md-3">
+                  <label for="appointmentlimit">Max Appointment</label>
+                   <input type="number" class="form-control" min="1" name="appointmentlimit" id="appointmentlimit" required>
+                </div>
+              </div>
+              <div class="row mt-3">
+                <div class="col-md-12">
+                  <button type="submit" class="btn btn-primary" name="btnadd"><i class="fa-solid fa-floppy-disk"></i> Add Schedule</button>
+                </div>
               </div>
             </div>
           </div>
           
           <!-- Modal footer -->
           <div class="modal-footer">
-            <button type="submit" class="btn btn-primary" name="btnupdate"><i class="fa-solid fa-floppy-disk"></i> Update</button>
             <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
           </div>
         </form>
@@ -291,11 +307,8 @@ new Session();
           dataType: 'json',
           data: {userid: $(this).val()},
           success: function(response){
-              //alert(response.lastname);
-              /*$('#userid2').val(response.userid);
-              $('#ln2').val(response.lastname);
-              $('#fn2').val(response.firstname);
-              $('#mn2').val(response.middlename);*/
+              $('#userid2').html(response.userid);
+              $('#drname').html(response.lastname+', '+ response.firstname);
           }
       });
     });
