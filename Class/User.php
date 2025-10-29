@@ -97,5 +97,42 @@ Class User extends Database{
             ]);
         }
     }
+    public function changepassword($userid,$pw,$pw2,$pw3){
+        $sql="select * from tbluser where user_id=?";
+        $stmt=$this->conn->prepare($sql);
+        $stmt->execute([$userid]);
+        $data=$stmt->fetch(PDO::FETCH_ASSOC);
+        if($data['password']==$pw){
+            if($pw2==$pw3){
+                $sql2="update tbluser set password=? where user_id=?";
+                $stmt=$this->conn->prepare($sql2);
+                if($stmt->execute([$pw2,$userid])){
+                    return([
+                        'success'=>true,
+                        'message'=>'Password Successfully Changed!',
+                        'icon'=>'success'
+                    ]);
+                }else{
+                    return([
+                        'success'=>false,
+                        'message'=>$this->conn->error,
+                        'icon'=>'error'
+                    ]);
+                }
+            }else{
+                return([
+                    'success'=>false,
+                    'message'=>'New Password did not match',
+                    'icon'=>'warning'
+                ]);
+            }
+        }else{
+            return([
+                    'succes'=>false,
+                    'message'=>'Incorrect Password',
+                    'icon'=>'warning'
+                ]);
+        }
+    }
 }
 ?>

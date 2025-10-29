@@ -219,7 +219,7 @@ new Session();
               </div>
               <div class="row mt-3">
                 <div class="col-md-12">
-                  <button type="submit" class="btn btn-primary" name="btnupdate"><i class="fa-solid fa-floppy-disk"></i> Update</button>
+                  <button type="submit" class="btn btn-primary" name="btnadd"><i class="fa-solid fa-floppy-disk"></i> Add Schedule</button>
                 </div>
               </div>
             </div>
