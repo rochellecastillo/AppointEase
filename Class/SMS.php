@@ -1,26 +1,39 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-Class SMS{
+class SMS {
     protected $apikey;
-    protected $sendername;
-    public function __construct($number,$message){
-        $this->apikey='7e99004e15a68a16f7b19f123cd985ff';
-        $this->sendername='AppointEase';
-        $ch=curl_init();
-        $data=array(
-            'apikey'=>$this->apikey,
-            'number'=>$number,
-            'message'=>$message,
-            'sendername'=>$this->sendername
-        );
-        curl_setopt($ch, CURLOPT_URL,'https://api.semaphore.co/api/v4/messages');
-        curl_setopt($ch,CURLOPT_POST,true);
-        curl_setopt($ch,CURLOPT_POSTFIELDS,http_build_query($data));
-        curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+
+    public function __construct($number, $message) {
+        $this->apikey = '955be0f88f2ab384e73432b6f695fa042743aabe'; // iProgTech API token
+
+        $data = [
+            'api_token'   => $this->apikey,
+            'phone_number'=> $number, // Try changing to 'number' if needed
+            'message'     => $message
+        ];
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => 'https://sms.iprogtech.com/api/v1/sms_messages',
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query($data),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/x-www-form-urlencoded',
+                'Accept: application/json'
+            ],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false, // disable SSL verification for debugging
+        ]);
+
         $response = curl_exec($ch);
+        $err = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        //echo $response;
+
+        /*echo "<b>HTTP Code:</b> $httpCode<br>";
+        if ($err) {
+            echo "<b>cURL Error:</b> $err<br>";
+        }
+        echo "<b>Response:</b><pre>$response</pre>";*/
     }
 }
 ?>
