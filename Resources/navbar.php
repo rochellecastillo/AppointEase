@@ -1,3 +1,8 @@
+<?php
+  if($_SESSION['role']=='admin'){$homepage='main.php';}
+  else if($_SESSION['role']=='user'){$homepage='usermain.php';}
+  else if($_SESSION['role']=='client'){$homepage='clientmain.php';}
+?>
 <nav class="navbar navbar-expand-sm bg-primary navbar-dark">
   <div class="container-fluid">
     <a class="navbar-brand" href="#"><img src="Resources/Images/logo.png" height="30px" alt="AppointEase"></a>
@@ -7,15 +12,21 @@
     <div class="collapse navbar-collapse" id="collapsibleNavbar">
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link" href="main.php">Home</a>
+          <a class="nav-link" href="<?=$homepage?>">Home</a>
         </li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">User</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="adminadduser.php">Add</a></li>
-            <li><a class="dropdown-item" href="adminshowusers.php">Show</a></li>
-          </ul>
-        </li>
+        <?php
+          if($_SESSION['role']=='admin'){
+        ?>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">User</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="adminadduser.php">Add</a></li>
+              <li><a class="dropdown-item" href="adminshowusers.php">Show</a></li>
+            </ul>
+          </li>
+        <?php
+          }
+        ?>
         <li class="nav-item">
           <a class="nav-link" href="about.php">About Us</a>
         </li>

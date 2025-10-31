@@ -33,7 +33,7 @@ $user_id=$_SESSION['user_id'];
                 header('location: main.php');
             }else if($_SESSION['role']=='user'){
                 header('location: usermain.php');
-            }else if($_SESSION['client']=='user'){
+            }else if($_SESSION['role']=='client'){
                 header('location: clientmain.php');
             }
         }else{
