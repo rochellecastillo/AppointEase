@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 Class SMS{
     protected $apikey;
     protected $sendername;
@@ -19,7 +21,6 @@ Class SMS{
         $response = curl_exec($ch);
         curl_close($ch);
         //echo $response;
-
     }
 }
 ?>

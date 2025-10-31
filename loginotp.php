@@ -23,7 +23,7 @@ $user_id=$_SESSION['user_id'];
         echo $otpdata['otp'];
         $contact=$data['contact'];
         $message='Your One-Time PIN is '.$otpdata['otp'].'. Please do not share this with anyone';
-        new SMS($contact,$message);
+        //new SMS($contact,$message);
     }
     if(isset($_POST['btnverify'])){
         $otp=$_POST['otp'];
