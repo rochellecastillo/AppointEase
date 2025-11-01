@@ -91,28 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
     // events data
-    events: [
-      {
-        title: 'Mr Castro',
-        start: '2025-10-20T10:00:00',
-      },
-      {
-        title: 'Mr Johnson',
-        start: '2025-10-20T10:00:00',
-      },
-      {
-        title: 'No Schedule',
-        start: '2025-10-25',
-        color: '#d61c2cff',
-      },
-      {
-        title: 'Dr Schedule',
-        startRecur: '2025-10-01',
-        endRecur: '2025-12-31',
-        daysOfWeek: [1,3], // Monday & Wed
-        color: '#28a745',
-      }
-    ]
+    events: eventlist
   });
 
   calendar.render();
@@ -150,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
           else topArea.appendChild(badge);
         }
         //badge.textContent = count + (count > 1 ? ' Appointments' : ' Appointment');
-        badge.textContent = count-1 + " / "+max;
+        badge.innerHTML = '<i class="fa-solid fa-square-check"></i>';
       }
     });
   }
