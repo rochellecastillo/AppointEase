@@ -10,5 +10,5 @@ $u=new User();
     $contact=$_POST['contact'];
     $address=$_POST['address'];
     $image='';
-    echo json_encode($u->adduser($ln,$fn,$mn,$specialization,$bdate,$gender,$address,$contact,'user',$image));
+    echo json_encode($u->adduser($ln,$fn,$mn,$specialization,$bdate,$gender,$address,$contact,'user',$image,'',''));
 ?>
