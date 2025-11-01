@@ -39,6 +39,18 @@ new Session();
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 </style>
-
+<script>
+    var eventlist=[
+      {
+        title: 'Mr Castro',
+        start: '2025-11-20T10:00:00',
+      },
+      {
+        title: 'Mr Johnson',
+        start: '2025-11-21T10:00:00',
+      },
+      
+    ];
+</script>
 <script src="Resources/calendar.js"></script>
 <link rel="stylesheet" href="Resources/calendar.css">
