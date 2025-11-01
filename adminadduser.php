@@ -1,7 +1,9 @@
 <?php
 session_start();
 require_once'Class/Session.php';
+require_once'Class/User.php';
 new Session();
+$u=new User();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -33,7 +35,8 @@ new Session();
               <label class="form-label">Last Name</label>
               <input name="last_name" class="form-control" required />
             </div>
-
+          </div>
+          <div class="row mt-3">
             <div class="col-md-4">
               <label class="form-label">Birthdate</label>
               <input name="bdate" type="date" class="form-control" required />
@@ -47,17 +50,36 @@ new Session();
                 <option value="female">Female</option>
               </select>
             </div>
-
             <div class="col-md-4">
               <label class="form-label">Contact</label>
               <input name="contact" class="form-control" />
             </div>
-
+          </div>
+          <div class="row mt-3">
+            <div class="col-md-5">
+              <label for="specialization">Specialization</label>
+              <select name="specialization" id="specialization" class="form-control">
+                <option selected disabled>-</option>
+                <?php
+                  $data2=$u->displayspecialization();
+                  $c=0;
+                  foreach($data2 as $row){
+                    $c++;
+                    echo'
+                      <option value="'.$row['specialization'].'">'.$c.'- '.$row['specialization'].'</option>
+                    ';
+                  }
+                ?>
+              </select>
+            </div>
+          </div>
+          <div class="row mt-3">
             <div class="col-12">
               <label class="form-label">Address</label>
               <textarea name="address" class="form-control" rows="2"></textarea>
             </div>
-
+          </div>
+          <div class="row mt-2">
             <div class="col-12 d-flex justify-content-end mt-3">
               <button type="submit" class="btn btn-primary" id="btnSubmit"><i class="fa-solid fa-floppy-disk"></i> Add Doctor</button>
             </div>

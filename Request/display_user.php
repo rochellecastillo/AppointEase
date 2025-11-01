@@ -6,6 +6,7 @@ $data=$u->displayuserinfo($userid);
 if($data){
     echo json_encode([
         'userid'=>$data['user_id'],
+        'specialization'=>$data['specialization'],
         'lastname'=>$data['last_name'],
         'firstname'=>$data['first_name'],
         'middlename'=>$data['middle_name'],
