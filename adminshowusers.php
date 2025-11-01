@@ -36,7 +36,8 @@ new Session();
       </script>
       ';
     }
-    $data=$u->displayallusers();
+    $data=$u->displayallusers('user');
+
   ?>
     <div class="container">
         <div class="row mt-3">
@@ -219,7 +220,7 @@ new Session();
               </div>
               <div class="row mt-3">
                 <div class="col-md-12">
-                  <button type="submit" class="btn btn-primary" name="btnadd"><i class="fa-solid fa-floppy-disk"></i> Add Schedule</button>
+                  <button type="button" class="btn btn-primary" name="  " id="btnadd"><i class="fa-solid fa-floppy-disk"></i> Add Schedule</button>
                 </div>
               </div>
             </div>
@@ -309,6 +310,28 @@ new Session();
           success: function(response){
               $('#userid2').html(response.userid);
               $('#drname').html(response.lastname+', '+ response.firstname);
+              $('#specialty').html(response.specialization);
+          }
+      });
+    });
+    
+    $("#btnadd").click(function(){
+      var userid=$("#userid2").text();
+      var day=$("#day").val();
+      var time1=$("#time1").val();
+      var time2=$("#time2").val();
+      var maxapt=$("#appointmentlimit").val();
+      $.ajax({
+          url: 'Request/addschedule.php',
+          method: 'POST',
+          dataType: 'json',
+          data: {userid: userid,day: day, time1: time1, time2: time2, maxapt:maxapt},
+          success: function(response){
+              Swal.fire({
+                title: "Add Doctor's Schedule",
+                text: response.message,
+                icon: response.icon
+            });
           }
       });
     });

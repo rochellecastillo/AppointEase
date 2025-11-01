@@ -24,17 +24,17 @@ Class User extends Database{
         $data=$stmt->fetch(PDO::FETCH_ASSOC);
         return $data;
     }
-    public function adduser($ln,$fn,$mn,$bdate,$gender,$address,$contact,$role){
+    public function adduser($ln,$fn,$mn,$specialization,$bdate,$gender,$address,$contact,$role,$image){
          try {
             $idnum = 'U'.date("ymd-") . mt_rand(0, 999);
             $pw=$ln.mt_rand(00000,99999);
             $this->conn->beginTransaction();
 
             $sql1 = "INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, ?, 1)";
-            $sql2 = "INSERT INTO tblinfo (user_id, last_name, first_name, middle_name, bdate, gender, address, contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $sql2 = "INSERT INTO tblinfo (user_id, last_name, first_name, middle_name, specialization, bdate, gender, address, contact, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt1 = $this->conn->prepare($sql1);
             $stmt2 = $this->conn->prepare($sql2);
-            $stmt2->execute([$idnum, $ln, $fn, $mn, $bdate, $gender, $address, $contact]);
+            $stmt2->execute([$idnum, $ln, $fn, $mn, $specialization, $bdate, $gender, $address, $contact, $image]);
             $stmt1->execute([$idnum, $idnum, $pw, $role]);
             $this->conn->commit();
 
@@ -72,10 +72,10 @@ Class User extends Database{
         }
 
     }
-    public function displayallusers(){
-        $sql="select i.*,u.status,u.user_name,u.password,u.user_type from tblinfo i inner join tbluser u on u.user_id=i.user_id order by i.last_name";
+    public function displayallusers($role){
+        $sql="select i.*,u.status,u.user_name,u.password,u.user_type from tblinfo i inner join tbluser u on u.user_id=i.user_id where user_type=? order by i.last_name";
         $stmt=$this->conn->prepare($sql);
-        $stmt->execute();
+        $stmt->execute([$role]);
         $data=$stmt->fetchAll(PDO::FETCH_ASSOC);
         return $data;
     }
@@ -132,6 +132,64 @@ Class User extends Database{
                     'message'=>'Incorrect Password',
                     'icon'=>'warning'
                 ]);
+        }
+    }
+    public function addspecialization($specialization){
+        $sql="insert into tblspecialization values(NULL,?)";
+        $stmt=$this->conn->prepare($sql);
+        if($stmt->execute([$specialization])){
+            return([
+                'success'=>true,
+                'message'=>'Specialization Successfully Added!',
+                'icon'=>'success'
+            ]);
+        }else{
+            return([
+                'success'=>false,
+                'message'=>$this->conn->error,
+                'icon'=>'error'
+            ]);
+        }
+    }
+    public function deletespecialization($id){
+        $sql="delete from tblspecialization where id=?";
+        $stmt=$this->conn->prepare($sql);
+        if($stmt->execute([$id])){
+            return([
+                'success'=>true,
+                'message'=>'Specialization Successfully Deleted!',
+                'icon'=>'success'
+            ]);
+        }else{
+            return([
+                'success'=>false,
+                'message'=>$this->conn->error,
+                'icon'=>'error'
+            ]);
+        }
+    }
+    public function displayspecialization(){
+        $sql="select * from tblspecialization order by specialization";
+        $stmt=$this->conn->prepare($sql);
+        $stmt->execute();
+        $data=$stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $data;
+    }
+    public function addschedule($userid,$day,$time1,$time2,$maxapt){
+        $sql="insert into tblschedule values(NULL,?,?,?,?,?)";
+        $stmt=$this->conn->prepare($sql);
+        if($stmt->execute([$userid,$day,$time1,$time2,$maxapt])){
+            return([
+                'success'=>true,
+                'message'=>'Schedule Successfully Deleted!',
+                'icon'=>'success'
+            ]);
+        }else{
+            return([
+                'success'=>false,
+                'message'=>$this->conn->error,
+                'icon'=>'error'
+            ]);
         }
     }
 }

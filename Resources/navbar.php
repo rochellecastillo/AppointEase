@@ -18,12 +18,15 @@
           if($_SESSION['role']=='admin'){
         ?>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">User</a>
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Doctor</a>
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="adminadduser.php">Add</a></li>
-              <li><a class="dropdown-item" href="adminshowusers.php">Show</a></li>
+              <li><a class="dropdown-item" href="adminadduser.php">Add New</a></li>
+              <li><a class="dropdown-item" href="adminshowusers.php">Update</a></li>
             </ul>
           </li>
+          <li class="nav-item">
+          <a class="nav-link" href="specialization.php">Specialization</a>
+        </li>
         <?php
           }
         ?>
