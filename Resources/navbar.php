@@ -25,9 +25,17 @@
             </ul>
           </li>
           <li class="nav-item">
-          <a class="nav-link" href="specialization.php">Specialization</a>
-        </li>
+            <a class="nav-link" href="specialization.php">Specialization</a>
+          </li>
         <?php
+          }else if($_SESSION['role']=='client'){
+            echo'
+              <li class="nav-item">
+                <a class="nav-link" href="book.php">Appointment</a>
+              </li>
+          ';
+          }else if($_SESSION['role']=='user'){
+
           }
         ?>
         <li class="nav-item">

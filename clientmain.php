@@ -27,6 +27,34 @@ new Session();
             <div class="col-md-8">
                 <div id="calendar"></div>
             </div>
+            <div class="col-md-4 ps-3">
+                <div class="row">
+                    <h6 class="text-center">Apointment Details</h6>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6>Date: <span></span></h6>
+                        
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6>Doctor</h6>
+                        <div class="d-flex">
+                            <div><img src="Resources/Images/default_profile.webp" height="60px;" alt="Image"></div>
+                            <div class="ps-3">
+                                <div><h3>Dr. Juan dela Cruz</h3></div>
+                                <div style="margin-top:-0.7em;"><h5>Specialization</h5></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <button class="form-control btn btn-primary" name="btncancel">Cancel Appointment</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <?php
