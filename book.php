@@ -31,6 +31,7 @@ $data=$a->viewdoctors();
                 $name='Dr. '.$row['last_name'].', '.$row['first_name'];
                 $specialization=$row['specialization'];
                 $image=$row['image']=='' ? 'default_profile.webp' : $row['image']; 
+                $userid=$row['user_id'];
             ?>
             <div class="col-md-3">
                 <div class="card login-container">
@@ -41,7 +42,7 @@ $data=$a->viewdoctors();
                         <div><h6 class="text-center fst-italic text-primary" style="margin-top:-0.7em;"><?=$specialization?></h6></div>
                     </div>
                     <div class="card-footer text-end">
-                        <button class="btn btn-sm btn-primary"><i class="fa-solid fa-plus"></i> Book</button>
+                        <button class="btn btn-sm btn-primary btnbook" data-bs-toggle="modal" data-bs-target="#bookingmodal" value="<?=$userid?>"><i class="fa-solid fa-plus"></i> Book</button>
                     </div>
                 </div>
             </div>
@@ -51,6 +52,8 @@ $data=$a->viewdoctors();
         </div>
     </div>
 
+
+    
 </body>
 </html>
 <style>
@@ -59,5 +62,12 @@ $data=$a->viewdoctors();
     }
 </style>
 
-<script src="Resources/calendar.js"></script>
-<link rel="stylesheet" href="Resources/calendar.css">
+<script>
+    $(document).ready(function(){
+        var btnbook= $(".btnbook");
+       btnbook.click(function(){
+            window.open("booksched.php?doctorid="+btnbook.val(),"_self");
+        });
+    }
+    );
+</script>
