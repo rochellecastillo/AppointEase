@@ -79,6 +79,7 @@ new Session();
       },
       
     ];
+    var page='client'
 </script>
 <script src="Resources/calendar.js"></script>
 <link rel="stylesheet" href="Resources/calendar.css">
