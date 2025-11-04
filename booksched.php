@@ -89,7 +89,9 @@ var eventlist = sched.map(function(item) {
     maxAppointment:item.max_appointment
   };
 });
-    
+var max=eventlist[0].maxAppointment;
+var count=eventlist.length-1;
+var page="booking";
 </script>
 <script src="Resources/calendar.js"></script>
 <link rel="stylesheet" href="Resources/calendar.css">

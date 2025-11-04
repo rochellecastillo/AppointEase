@@ -22,10 +22,11 @@ document.addEventListener('DOMContentLoaded', function() {
       var scheduleEvent = eventlist.find(e => e.daysOfWeek.includes(dow));
 
       // ✅ Use its maxAppointment (default 0 if not found)
-      var max = scheduleEvent ? scheduleEvent.extendedProps.maxAppointment : 0;
+      //var max = scheduleEvent ? scheduleEvent.extendedProps.maxAppointment : 0;
+      //var max=2;
 
       if (apcount === 0) {
-        alert("No appointments on " + clickedDate);
+        //alert("No appointments on " + clickedDate);
       } else {
         alert("Appointments on " + clickedDate + ": " + apcount + " / " + max);
       }
@@ -44,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderedEvents.forEach(el => el.style.display = 'none');
 
         var allEvents = calendar.getEvents();
-        var count = allEvents.filter(ev => (ev.startStr || '').split('T')[0] === dateStr).length;
+        //var count = allEvents.filter(ev => (ev.startStr || '').split('T')[0] === dateStr).length;
 
         var topArea = dayCell.querySelector('.fc-daygrid-day-top') || dayCell;
         var badge = topArea.querySelector('.event-count-badge');
@@ -58,8 +59,12 @@ document.addEventListener('DOMContentLoaded', function() {
             topArea.appendChild(badge);
         }
 
-        //badge.innerHTML = '<i class="fa-solid fa-eye"></i>';
-        badge.textContent = count-1 + " / " + max;
+        //badge.textContent = count-1 + " / " + max;
+        if(page=='booking'){
+          badge.textContent = count + " / " + max;
+        }else if(page=='client'){
+          badge.innerHTML = '<i class="fa-solid fa-eye"></i>';
+        }
 
       } catch (err) {
         console.error('eventDidMount error:', err);
