@@ -11,5 +11,12 @@ Class Appointment extends Database{
         $data=$stmt->fetchAll(PDO::FETCH_ASSOC);
         return $data;
     }
+    public function displaydoctorschedule($doctorid){
+        $sql="select * from tblschedule where user_id=?";
+        $stmt=$this->conn->prepare($sql);
+        $stmt->execute([$doctorid]);
+        $data=$stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $data;
+    }
 }
 ?>

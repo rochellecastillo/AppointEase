@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-  var max = 2; // max allowed appointments per day
   var calendarEl = document.getElementById('calendar');
 
   var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -18,7 +17,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       var apcount = eventsOnDate.length;
 
-      // 🟢 Show alert every time user clicks a date
+      // ✅ Find which schedule applies to this date (based on day of week)
+      var dow = new Date(clickedDate).getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+      var scheduleEvent = eventlist.find(e => e.daysOfWeek.includes(dow));
+
+      // ✅ Use its maxAppointment (default 0 if not found)
+      var max = scheduleEvent ? scheduleEvent.extendedProps.maxAppointment : 0;
+
       if (apcount === 0) {
         alert("No appointments on " + clickedDate);
       } else {
@@ -53,21 +58,20 @@ document.addEventListener('DOMContentLoaded', function() {
             topArea.appendChild(badge);
         }
 
-        // update badge display
-        badge.innerHTML = '<i class="fa-solid fa-eye"></i>';
+        //badge.innerHTML = '<i class="fa-solid fa-eye"></i>';
+        badge.textContent = count-1 + " / " + max;
 
       } catch (err) {
         console.error('eventDidMount error:', err);
       }
     },
 
-    // your event data
     events: eventlist
   });
 
   calendar.render();
 
-  // update all badges when navigating calendar
+  // ✅ Update badges when navigating the calendar
   function updateAllBadges() {
     var dayCells = calendarEl.querySelectorAll('.fc-daygrid-day[data-date]');
     var allEvents = calendar.getEvents();
@@ -83,6 +87,11 @@ document.addEventListener('DOMContentLoaded', function() {
       var topArea = dayCell.querySelector('.fc-daygrid-day-top') || dayCell;
       var badge = topArea.querySelector('.event-count-badge');
 
+      // ✅ Get day of week and find schedule
+      var dow = new Date(dateStr).getDay();
+      var scheduleEvent = eventlist.find(e => e.daysOfWeek.includes(dow));
+      var max = scheduleEvent ? scheduleEvent.extendedProps.maxAppointment : 0;
+
       if (count === 0) {
         if (badge) badge.remove();
       } else {
@@ -95,13 +104,14 @@ document.addEventListener('DOMContentLoaded', function() {
           else
             topArea.appendChild(badge);
         }
-        badge.textContent = count + " / " + max;
+
+
+        badge.textContent = (count - 1) + " / " + max;
       }
     });
   }
 
   setTimeout(updateAllBadges, 120);
-
   calendarEl.addEventListener('click', function() {
     setTimeout(updateAllBadges, 120);
   });
