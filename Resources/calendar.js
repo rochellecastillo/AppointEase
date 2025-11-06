@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // ✅ Find which schedule applies to this date (based on day of week)
       var dow = new Date(clickedDate).getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-      var scheduleEvent = eventlist.find(e => e.daysOfWeek.includes(dow));
+      //var scheduleEvent = eventlist.find(e => e.daysOfWeek.includes(dow));
 
       // ✅ Use its maxAppointment (default 0 if not found)
       //var max = scheduleEvent ? scheduleEvent.extendedProps.maxAppointment : 0;
@@ -28,7 +28,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (apcount === 0) {
         //alert("No appointments on " + clickedDate);
       } else {
-        alert("Appointments on " + clickedDate + ": " + apcount + " / " + max);
+       // alert("Appointments on " + clickedDate + ": " + apcount + " / " + max);
+       alert("test");
       }
     },
 
@@ -94,8 +95,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // ✅ Get day of week and find schedule
       var dow = new Date(dateStr).getDay();
-      var scheduleEvent = eventlist.find(e => e.daysOfWeek.includes(dow));
-      var max = scheduleEvent ? scheduleEvent.extendedProps.maxAppointment : 0;
+      if(page=='booking'){
+        var scheduleEvent = eventlist.find(e => e.daysOfWeek.includes(dow));
+      }else if(page=='client'){
+        var scheduleEvent = eventlist.find(e => e.start);
+
+      }
+      //var max = scheduleEvent ? scheduleEvent.extendedProps.maxAppointment : 0;
 
       if (count === 0) {
         if (badge) badge.remove();
@@ -110,8 +116,12 @@ document.addEventListener('DOMContentLoaded', function() {
             topArea.appendChild(badge);
         }
 
+        if(page=='booking'){
+          badge.textContent = (count - 1) + " / " + max;
+        }else if(page=='client'){
+          badge.innerHTML = '<i class="fa-solid fa-eye"></i>';
 
-        badge.textContent = (count - 1) + " / " + max;
+        }
       }
     });
   }
