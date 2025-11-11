@@ -24,9 +24,11 @@ $data=$a->viewdoctors();
     $doctorid=$_GET['doctorid'];
     $row=$u->displayuserinfo($doctorid);
     $data=$a->displaydoctorschedule($doctorid);
+    $data2=$a->displayappointment($doctorid);
     $name=$row['last_name'].', '.$row['first_name'];
     $specialization=$row['specialization'];
     $sched=[];
+    $userid=$_SESSION['user_id'];
     foreach($data as $row){
         $sched[]=[
             'day'=>$row['day'],
@@ -34,6 +36,21 @@ $data=$a->viewdoctors();
             'time2'=>$row['time2'],
             'max_appointment'=>$row['max_appointment']
         ];
+    }
+
+    if(isset($_POST['btnbook'])){
+        $date= $_POST['btnbook'];
+        $res=$a->saveappointment($doctorid,$userid,$date);
+        $res = json_decode($res, true);
+        echo'
+            <script>
+                Swal.fire({
+                    title: "Booking",
+                    text: "'.$res['message'].'",
+                    icon: "'.$res['icon'].'"
+                });
+            </script>
+        ';
     }
     ?>
     <?php include_once'Resources/navbar.php';?>
@@ -69,7 +86,47 @@ $data=$a->viewdoctors();
             
     </div>
 
+    <div class="modal" id="appointmentmodal">
+        <div class="modal-dialog">
+            <div class="modal-content">
 
+            <!-- Modal Header -->
+            <div class="modal-header bg-primary text-white">
+                <h4 class="modal-title">Book Appointment</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <!-- Modal body -->
+            <div class="modal-body">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-12 d-flex">
+                            <div><img src="Resources/Images/default_profile.webp" alt="profile" height="50px"></div>
+                            <div>
+                                <div><h5><?=$name?></h5></div>
+                                <div style="margin-top:-0.5em;"><?=$specialization?></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <h6>Appointment Date: <span class="fw-bold" id="aptdate"></span></h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal footer -->
+            <div class="modal-footer">
+                <form method="POST">
+                    <button type="submit" class="btn btn-primary" name="btnbook" id="btnbook"><i class="fa-solid fa-floppy-disk"></i> Save Appointment</button>
+                </form>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fa-solid fa-square-xmark"></i> Close</button>
+            </div>
+
+            </div>
+        </div>
+        </div>
     
 </body>
 </html>
@@ -88,6 +145,12 @@ var eventlist = sched.map(function(item) {
     endTime: item.time2,
     maxAppointment:item.max_appointment
   };
+});
+
+eventlist.push({
+  title: 'Mr. Castro Appointment',
+  start: '2025-11-13T10:00:00', // specific date + time
+  end: '2025-11-13T10:30:00'
 });
 var max=eventlist[0].maxAppointment;
 var count=eventlist.length-1;
