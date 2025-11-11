@@ -29,7 +29,14 @@ document.addEventListener('DOMContentLoaded', function() {
         //alert("No appointments on " + clickedDate);
       } else {
        // alert("Appointments on " + clickedDate + ": " + apcount + " / " + max);
-       alert("test");
+       //alert(page);
+       if(page=='booking'){
+        var myModal = new bootstrap.Modal(document.getElementById('appointmentmodal'));
+        myModal.show();
+        document.getElementById("aptdate").innerHTML=clickedDate;
+        document.getElementById("btnbook").value=clickedDate;
+       }
+       
       }
     },
 
@@ -89,7 +96,12 @@ document.addEventListener('DOMContentLoaded', function() {
       var renderedEvents = dayCell.querySelectorAll('.fc-event');
       renderedEvents.forEach(el => el.style.display = 'none');
 
-      var count = allEvents.filter(ev => (ev.startStr || '').split('T')[0] === dateStr).length;
+      //var count = allEvents.filter(ev => (ev.startStr || '').split('T')[0] === dateStr).length;
+      var count = allEvents.filter(ev =>
+        (ev.startStr || '').split('T')[0] === dateStr &&
+        ev.title !== 'Clinic Schedule' // exclude recurring schedule
+      ).length;
+
       var topArea = dayCell.querySelector('.fc-daygrid-day-top') || dayCell;
       var badge = topArea.querySelector('.event-count-badge');
 
