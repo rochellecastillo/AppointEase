@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Nov 01, 2025 at 10:33 AM
+-- Generation Time: Nov 15, 2025 at 03:33 AM
 -- Server version: 8.0.34
 -- PHP Version: 8.2.11
 
@@ -35,6 +35,14 @@ CREATE TABLE `tblappointment` (
   `status` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `tblappointment`
+--
+
+INSERT INTO `tblappointment` (`id`, `booking_date`, `user_id`, `doctor`, `status`) VALUES
+(2, '2025-11-13', 'client1001', 'U251025-579', 0),
+(3, '2025-11-20', 'client1001', 'U251025-579', 0);
+
 -- --------------------------------------------------------
 
 --
@@ -62,7 +70,9 @@ CREATE TABLE `tblinfo` (
 INSERT INTO `tblinfo` (`id`, `user_id`, `last_name`, `first_name`, `middle_name`, `specialization`, `bdate`, `gender`, `address`, `contact`, `image`) VALUES
 (1, 'user0001', 'dela cruz', 'juan', 'cruz', '', '2000-01-01', 'male', 'rosario batangas', '09913575449', ''),
 (3, 'U251024-236', 'Cruz', 'Joan', 'asas', '', '2025-10-24', 'female', 'San Juan, Batangas', '12121212', ''),
-(4, 'U251025-579', 'uuu', 'uuu', 'uuu', 'General Practitioner', '2025-01-01', 'female', 'Rosario, Batangas', '1111111', '');
+(4, 'U251025-579', 'Doctor', 'Nobita', 'A', 'General Practitioner', '2025-01-01', 'female', 'Rosario, Batangas', '1111111', ''),
+(9, 'client1001', 'Matundan', 'Ash', 'Caelum', '', '2000-11-01', 'male', 'Lipa City', '09633883956', ''),
+(10, 'haiiro', 'Sora', 'Haiiro', '', '', '2025-11-15', 'male', 'Rosario Batangas', '09913575449', '');
 
 -- --------------------------------------------------------
 
@@ -119,7 +129,22 @@ INSERT INTO `tblotp` (`id`, `user_id`, `otp`, `timegenerated`) VALUES
 (25, 'user0001', '210644', '2025-10-31 17:17:49'),
 (26, 'user0001', '706758', '2025-10-31 17:19:15'),
 (27, 'U251024-236', '623996', '2025-10-31 21:15:22'),
-(28, 'user0001', '739427', '2025-11-01 15:57:11');
+(28, 'user0001', '739427', '2025-11-01 15:57:11'),
+(29, 'client1001', '354228', '2025-11-01 21:41:10'),
+(30, 'client1001', '995488', '2025-11-02 09:34:35'),
+(31, 'client1001', '173817', '2025-11-02 16:06:41'),
+(32, 'client1001', '682811', '2025-11-04 19:38:34'),
+(33, 'client1001', '331063', '2025-11-04 19:39:58'),
+(34, 'user0001', '787266', '2025-11-04 21:40:53'),
+(35, 'client1001', '146325', '2025-11-04 21:42:00'),
+(36, 'client1001', '904138', '2025-11-05 11:20:14'),
+(37, 'client1001', '922080', '2025-11-11 08:41:28'),
+(38, 'client1001', '941635', '2025-11-11 08:47:19'),
+(39, 'client1001', '693223', '2025-11-11 11:13:17'),
+(40, 'client1001', '519139', '2025-11-11 11:13:50'),
+(41, 'haiiro', '539754', '2025-11-15 09:03:06'),
+(42, 'client1001', '647829', '2025-11-15 11:26:46'),
+(43, 'client1001', '334934', '2025-11-15 11:30:57');
 
 -- --------------------------------------------------------
 
@@ -141,7 +166,8 @@ CREATE TABLE `tblschedule` (
 --
 
 INSERT INTO `tblschedule` (`id`, `user_id`, `day`, `time`, `time2`, `max_appointment`) VALUES
-(1, 'U251025-579', 2, '08:00:00', '10:00:00', 15);
+(1, 'U251025-579', 2, '08:00:00', '10:00:00', 15),
+(2, 'U251025-579', 4, '08:00:00', '12:00:00', 16);
 
 -- --------------------------------------------------------
 
@@ -179,7 +205,7 @@ CREATE TABLE `tbluser` (
   `id` int NOT NULL,
   `user_id` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
   `user_name` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `user_type` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -189,9 +215,11 @@ CREATE TABLE `tbluser` (
 --
 
 INSERT INTO `tbluser` (`id`, `user_id`, `user_name`, `password`, `user_type`, `status`) VALUES
-(3, 'user0001', 'admin', 'Admin_12345', 'admin', 1),
-(6, 'U251024-236', 'U251024-236', 'Cruz_123456', 'client', 1),
-(7, 'U251025-579', 'U251025-579', 'uuu69498', 'user', 1);
+(3, 'user0001', 'admin', '$2y$10$RM5bFGOl/8Jqgub98Zw02Ou90otsG7rf1BIsd9/b0469Sm54Mc3n2', 'admin', 1),
+(6, 'U251024-236', 'U251024-236', '$2y$10$I0ZyZUQ75qOhrwdQQYOhXOFx0iSo7wOExQujRxYYLW6ujxBfIRsEG', 'client', 1),
+(7, 'U251025-579', 'U251025-579', '$2y$10$7nMO44N5STK.A4BssoP3ju0LJP4jCNkmVtUigrk1z1V.ljPTPX5my', 'user', 1),
+(12, 'client1001', 'client1001', '$2y$10$0CHsvSmdbf4Ai8tOg8GiMuvob.RPdkUPmjEkICUvfcbbdlylh1tt6', 'client', 1),
+(14, 'haiiro', 'haiiro', '12345', 'client', 1);
 
 --
 -- Indexes for dumped tables
@@ -254,13 +282,13 @@ ALTER TABLE `tbluser`
 -- AUTO_INCREMENT for table `tblappointment`
 --
 ALTER TABLE `tblappointment`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `tblinfo`
 --
 ALTER TABLE `tblinfo`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `tblnoappointment`
@@ -272,13 +300,13 @@ ALTER TABLE `tblnoappointment`
 -- AUTO_INCREMENT for table `tblotp`
 --
 ALTER TABLE `tblotp`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- AUTO_INCREMENT for table `tblschedule`
 --
 ALTER TABLE `tblschedule`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `tblspecialization`
@@ -290,7 +318,7 @@ ALTER TABLE `tblspecialization`
 -- AUTO_INCREMENT for table `tbluser`
 --
 ALTER TABLE `tbluser`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- Constraints for dumped tables

@@ -7,8 +7,8 @@ Class User extends Database{
         $stmt->execute([$un]);
         $data=$stmt->fetch(PDO::FETCH_ASSOC);
         if($data){
-            //if(password_verify($pw,$data['password'])){
-            if($pw==$data['password']){
+            if(password_verify($pw,$data['password'])){
+            //if($pw==$data['password']){
                 return $data;
             }else{
                 return false;
@@ -28,10 +28,11 @@ Class User extends Database{
          try {
             if($role=='client'){
                 $idnum=$un;
-                $pw=$pass;
+                $pw=password_hash($pass,PASSWORD_DEFAULT);
             }else{
                 $idnum = 'U'.date("ymd-") . mt_rand(0, 999);
-                $pw=$ln.mt_rand(00000,99999);
+                //$pw=$ln.mt_rand(00000,99999);
+                $pw=password_hash($ln,PASSWORD_DEFAULT);
             }
             $this->conn->beginTransaction();
             
@@ -107,11 +108,12 @@ Class User extends Database{
         $stmt=$this->conn->prepare($sql);
         $stmt->execute([$userid]);
         $data=$stmt->fetch(PDO::FETCH_ASSOC);
-        if($data['password']==$pw){
+        //if($data['password']==$pw){
+        if(password_verify($pw,$data['password'])){
             if($pw2==$pw3){
                 $sql2="update tbluser set password=? where user_id=?";
                 $stmt=$this->conn->prepare($sql2);
-                if($stmt->execute([$pw2,$userid])){
+                if($stmt->execute([password_hash($pw2,PASSWORD_DEFAULT),$userid])){
                     return([
                         'success'=>true,
                         'message'=>'Password Successfully Changed!',
