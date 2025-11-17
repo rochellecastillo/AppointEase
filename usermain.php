@@ -428,7 +428,7 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
                 hour12: true 
             });
             tm.text(timeString);
-        }
+        }   
         updateTime();
         setInterval(updateTime, 1000);
     });
