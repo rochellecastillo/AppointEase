@@ -56,6 +56,11 @@
 
 <script>
     $(document).ready(function(){
+        $.validator.addMethod("regex", function(value, element, regexp) {
+            let re = new RegExp(regexp);
+            return this.optional(element) || re.test(value);
+        });
+
         $('#loginform').validate({
             rules:{
                 un:{
@@ -64,17 +69,19 @@
                 },
                 pw:{
                     required: true,
-                    minlength: 8
+                    minlength: 8,
+                    regex: /^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).*$/
                 }
             },
             messages:{
                 un:{
                     required: 'Please enter a username',
-                    minlength: 'username must be atleast 5 characters'
+                    minlength: 'Username must be at least 5 characters'
                 },
                 pw:{
                     required: 'Please enter a password',
-                    minlength: 'Pasword must be atleast 8 characters'
+                    minlength: 'Password must be at least 8 characters',
+                    regex: 'Password must include at least one capital letter, one number, and one symbol'
                 }
             },
             submitHandler:function(form,event){
@@ -100,8 +107,8 @@
                 });
             }
         });
-
     });
+
 </script>
 
 
