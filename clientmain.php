@@ -14,17 +14,22 @@ $stmt = $conn->prepare("
         a.id,
         a.booking_date,
         a.status,
-        di.first_name as doctor_first_name,
-        di.last_name as doctor_last_name,
+        di.first_name AS doctor_first_name,
+        di.last_name AS doctor_last_name,
         di.specialization,
-        di.image as doctor_image,
-        s.time as start_time,
-        s.time2 as end_time
+        di.image AS doctor_image,
+        s.time AS start_time,
+        s.time2 AS end_time
     FROM tblappointment a
-    JOIN tblinfo di ON a.doctor = di.user_id
-    LEFT JOIN tblschedule s ON a.doctor = s.user_id
+    LEFT JOIN tblinfo di ON a.doctor = di.user_id
+    LEFT JOIN (
+        SELECT user_id, time, time2
+        FROM tblschedule
+        GROUP BY user_id
+    ) s ON a.doctor = s.user_id
     WHERE a.user_id = :user_id
-    ORDER BY a.booking_date DESC
+    ORDER BY a.booking_date DESC;
+
 ");
 $stmt->execute(['user_id' => $userId]);
 $appointments = $stmt->fetchAll();
@@ -182,51 +187,7 @@ foreach ($appointments as $apt) {
                 </div>
 
                 <!-- Appointments List -->
-                <div class="appointment-card mt-4">
-                    <h5 class="mb-3"><i class="fa-solid fa-list me-2"></i>All Appointments</h5>
-                    <div class="appointment-list">
-                        <?php if (empty($appointments)): ?>
-                            <div class="no-appointment">
-                                <i class="fa-solid fa-calendar-xmark fa-3x mb-3"></i>
-                                <p>No appointments found</p>
-                                <button class="btn btn-primary">
-                                    <i class="fa-solid fa-plus me-2"></i>Book New Appointment
-                                </button>
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($appointments as $apt): 
-                                $isPast = strtotime($apt['booking_date']) < strtotime('today');
-                                $itemClass = $isPast ? 'appointment-item past' : 'appointment-item';
-                            ?>
-                                <div class="<?= $itemClass ?>" onclick="showAppointmentDetails(<?= htmlspecialchars(json_encode($apt)) ?>)">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1">
-                                                <?= date('F d, Y', strtotime($apt['booking_date'])) ?>
-                                            </h6>
-                                            <p class="mb-1 text-muted">
-                                                Dr. <?= htmlspecialchars($apt['doctor_first_name'] . ' ' . $apt['doctor_last_name']) ?>
-                                            </p>
-                                            <small class="text-muted">
-                                                <i class="fa-solid fa-stethoscope me-1"></i>
-                                                <?= htmlspecialchars($apt['specialization'] ?: 'General Practitioner') ?>
-                                            </small>
-                                        </div>
-                                        <div>
-                                            <?php if ($apt['status'] == 0): ?>
-                                                <span class="status-badge status-pending">Pending</span>
-                                            <?php elseif ($apt['status'] == 1): ?>
-                                                <span class="status-badge status-approved">Approved</span>
-                                            <?php else: ?>
-                                                <span class="status-badge status-cancelled">Cancelled</span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
+                
             </div>
 
             <!-- Appointment Details Sidebar -->
@@ -255,7 +216,11 @@ foreach ($appointments as $apt) {
             return [
                 'id' => $apt['id'],
                 'title' => 'Dr. ' . $apt['doctor_last_name'],
+                'doctor' => 'Dr. ' . $apt['doctor_last_name'].', '.$apt['doctor_first_name'],
+                'specialization' =>$apt['specialization'],
                 'start' => $apt['booking_date'],
+                'time'=>$apt['start_time'].'-'.$apt['end_time'],
+                'status'=>$apt['status'],
                 'backgroundColor' => $apt['status'] == 0 ? '#ffc107' : ($apt['status'] == 1 ? '#28a745' : '#dc3545'),
                 'extendedProps' => $apt
             ];
