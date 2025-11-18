@@ -59,17 +59,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <div class="mb-3">
                   <strong>Status:</strong>
-                  ${eventsOnDate[0].extendedProps.status == 0 
-                  ? ` <span class="status-badge status-approved">Approved</span>`
-                  : `<span class="status-badge status-cancelled">Cancelled</span>`}
+                 ${eventsOnDate[0].extendedProps.status == 0 
+                  ? '<span class="status-badge status-approved">Approved</span>'
+                  : eventsOnDate[0].extendedProps.status == 1
+                  ? '<span class="status-badge status-pending">Completed</span>'
+                    : '<span class="status-badge status-cancelled">Cancelled</span>'}
                 </div>
                   
-                    <button class="btn btn-danger w-100 mb-2" onclick="cancelAppointment()">
+                    <button class="btn btn-danger w-100 mb-2" onclick="cancelAppointment(${eventsOnDate[0].extendedProps.id})">
                         <i class="fa-solid fa-times me-2"></i>Cancel Appointment
                     </button>
                     <button class="btn btn-outline-primary w-100" onclick="rescheduleAppointment()">
                         <i class="fa-solid fa-calendar-alt me-2"></i>Reschedule
                     </button>
+                  
                 
        `;
        document.getElementById("appointmentDetails").innerHTML=html;
@@ -181,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if(page=='booking'){
           badge.textContent = (count - 1) + " / " + max;
         }else if(page=='client'){
-          badge.innerHTML = '<div>'+event.time+'</div>';
+          //badge.innerHTML = '<div>'+event.time+'</div>';
 
         }
       }

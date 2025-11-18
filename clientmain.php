@@ -277,12 +277,24 @@ foreach ($appointments as $apt) {
             document.getElementById('detailsContent').innerHTML = detailsHtml;
         }
 
-        function cancelAppointment(id) {
-            if (confirm('Are you sure you want to cancel this appointment?')) {
-                // Add your cancel appointment logic here
-                console.log('Cancelling appointment:', id);
-            }
+       function cancelAppointment(id) {
+        if (confirm('Are you sure you want to cancel this appointment?')) {
+            $.get('Request/cancelbooking.php', { id: id }, function(response) {
+                console.log(response); // see the actual JSON in console
+                 Swal.fire({
+                    title: "Cancel Booking",
+                    text: response.message, 
+                    icon: response.icon     
+                }).then(()=>{
+                    location.reload();
+                });
+            }, 'json'); 
+
+            console.log("Appointment ID to cancel:", id);
+            
         }
+    }
+
 
         function rescheduleAppointment(id) {
             // Add your reschedule logic here
