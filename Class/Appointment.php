@@ -53,5 +53,23 @@ Class Appointment extends Database{
         }
        
     }
+    public function cancel($id){
+        $sql="update tblappointment set Status=2 where id=?";
+        $stmt=$this->conn->prepare($sql);
+        if($stmt->execute([$id])){
+            return json_encode([
+                'success'=>true,
+                'message'=>'Booking Cancelled',
+                'icon'=>'success'
+
+            ]);
+        }else{
+            return json_encode([
+                'success'=>false,
+                'message'=>$this->conn->error,
+                'icon'=>'danger'
+            ]);
+        }
+    }
 }
 ?>
