@@ -1,32 +1,50 @@
-    /* badge style */
-    .event-count-badge {
-      display: inline-block;
-      font-size: 0.75em;
-      font-weight: 700;
-      color: white;
-      background: #007bff;
-      border-radius: 10px;
-      padding: 2px 6px;
-      margin-top: 4px;
-    }
 
-    /* keep day top layout with space for badge */
-    .fc-daygrid-day-top {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-center;
-      justify-content:center;
-      gap: 4px;
-      min-height: 30px;
-    }
+/* Day cell container to allow centering */
+.fc-daygrid-day-top {
+  position: relative;
+  display: flex;
+  /*flex-direction: column;*/
+  align-items: center;  /* center horizontally */
+  gap: 4px;             /* space between day number and badge */
+  min-height: 30px;
+  /*background-color: #0069d9;*/
+}
+
+/* Style the badge */
+.event-count-badge {
+  position:absolute;
+  top:3em;
+  right:2em;
+  /*background-color: #007bff;*/
+  color: rgb(62, 17, 187);
+  font-size: 0.7em;
+  font-weight: bold;
+  border-radius: 10px;
+  padding: 2px 6px;
+  text-align: center;
+  line-height: 1.2;
+  width: max-content;
+  min-width: 20px;
+}
+
+
+  /* Change day number font color if the cell has an event */
+  .fc-daygrid-day-number.has-event-number {
+    color: #007bff !important; /* blue text */
+    font-weight: bold;          /* optional */
+    transition: #007bff !important;
+  }
+
+
 
     /* small UI tweaks from your original CSS */
+    
     .fc-event-title { font-size: 12px !important; font-weight: normal !important; }
     .fc-col-header-cell-cushion { text-decoration: none !important; font-weight: bold; }
-    .fc-daygrid-event { margin: 1px 0 !important; padding: 2px 4px !important; line-height: 0.7 !important; font-size: 0.7em; text-align: center !important; }
+    .fc-daygrid-event { background-color: #007bff !important; margin: 1px 0 !important; padding: 2px 4px !important; line-height: 0.7 !important; font-size: 0.7em; text-align: center !important; }
     .fc-daygrid-day-number { text-decoration: none !important; color: black; font-weight: bold; font-size: 1.2em; }
     .fc-daygrid-day-number:hover { background-color: #f0f0f0; border-radius: 5px; cursor: pointer; }
-    .fc-daygrid-day-frame { border-radius: 10px !important; overflow: hidden; transition: background-color 0.2s ease; border: 1px solid #d8d8d8ff; }
+    .fc-daygrid-day-frame {  border-radius: 10px !important; overflow: hidden; transition: background-color 0.2s ease; border: 1px solid #d8d8d8ff; }
     .fc-daygrid-day-frame:hover { background-color: #f8f9fa; cursor: pointer; }
 
     /* FullCalendar buttons - Blue theme */

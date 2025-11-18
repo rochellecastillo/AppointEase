@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   var calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
+    
 
     dateClick: function(info) {
       var events = calendar.getEvents();
@@ -26,10 +27,54 @@ document.addEventListener('DOMContentLoaded', function() {
       //var max=2;
 
       if (apcount === 0) {
-        //alert("No appointments on " + clickedDate);
+        alert("No appointments on " + clickedDate);
       } else {
-       // alert("Appointments on " + clickedDate + ": " + apcount + " / " + max);
-       //alert(page);
+        
+        //alert("Appointments on " + clickedDate + ": " + apcount + " / " + max);
+       var html=`
+        <div class="text-center mb-3">
+          <h6 class="text-center mb-4">
+              <i class="fa-solid fa-info-circle me-2"></i>Appointment Details
+          </h6>
+          <h6 class="text-primary">${formatDate(clickedDate)}</h6>
+          <small class="text-muted">${eventsOnDate[0].extendedProps.time}</small>
+        </div>
+                
+                <hr>
+                
+                <div class="doctor-profile mb-3">
+                    <div class="d-flex align-items-center">
+                        <img src="Resources/Images/default_profile.webp" 
+                             class="doctor-image me-3" 
+                             alt="Doctor">
+                        <div>
+                            <h5 class="mb-1">${eventsOnDate[0].extendedProps.doctor}</h5>
+                            <p class="text-muted mb-0">
+                                <i class="fa-solid fa-stethoscope me-1"></i>
+                                ${eventsOnDate[0].extendedProps.specialization}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                  <strong>Status:</strong>
+                  ${eventsOnDate[0].extendedProps.status == 0 
+                  ? ` <span class="status-badge status-approved">Approved</span>`
+                  : `<span class="status-badge status-cancelled">Cancelled</span>`}
+                </div>
+                  
+                    <button class="btn btn-danger w-100 mb-2" onclick="cancelAppointment()">
+                        <i class="fa-solid fa-times me-2"></i>Cancel Appointment
+                    </button>
+                    <button class="btn btn-outline-primary w-100" onclick="rescheduleAppointment()">
+                        <i class="fa-solid fa-calendar-alt me-2"></i>Reschedule
+                    </button>
+                
+       `;
+       document.getElementById("appointmentDetails").innerHTML=html;
+
+
        if(page=='booking'){
         var myModal = new bootstrap.Modal(document.getElementById('appointmentmodal'));
         myModal.show();
@@ -41,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
     eventDidMount: function(info) {
+        info.el.style.display = 'none';
       try {
         var dateStr = (info.event.startStr || '').split('T')[0];
         if (!dateStr) return;
@@ -49,8 +95,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!dayCell) return;
 
         // hide all events (we just want the badge)
-        var renderedEvents = dayCell.querySelectorAll('.fc-event');
-        renderedEvents.forEach(el => el.style.display = 'none');
+        //var renderedEvents = dayCell.querySelectorAll('.fc-event');
+        //renderedEvents.forEach(el => el.style.display = 'none');
 
         var allEvents = calendar.getEvents();
         //var count = allEvents.filter(ev => (ev.startStr || '').split('T')[0] === dateStr).length;
@@ -71,7 +117,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if(page=='booking'){
           badge.textContent = count + " / " + max;
         }else if(page=='client'){
-          badge.innerHTML = '<i class="fa-solid fa-eye"></i>';
+          badge.innerHTML = `
+          <div><i class="fa-solid fa-eye"></i></div>
+          <div>${info.event.title}</div>
+          <div style="font-size:0.8em;text-align:center;">${info.event.extendedProps.time}</div>
+          `;
         }
 
       } catch (err) {
@@ -93,8 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {
       var dateStr = dayCell.getAttribute('data-date');
       if (!dateStr) return;
 
-      var renderedEvents = dayCell.querySelectorAll('.fc-event');
-      renderedEvents.forEach(el => el.style.display = 'none');
+      //var renderedEvents = dayCell.querySelectorAll('.fc-event');
+      //renderedEvents.forEach(el => el.style.display = 'none');
 
       //var count = allEvents.filter(ev => (ev.startStr || '').split('T')[0] === dateStr).length;
       var count = allEvents.filter(ev =>
@@ -131,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if(page=='booking'){
           badge.textContent = (count - 1) + " / " + max;
         }else if(page=='client'){
-          badge.innerHTML = '<i class="fa-solid fa-eye"></i>';
+          badge.innerHTML = '<div>'+event.time+'</div>';
 
         }
       }
@@ -143,3 +193,13 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(updateAllBadges, 120);
   });
 });
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
