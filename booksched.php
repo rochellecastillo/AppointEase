@@ -37,7 +37,7 @@ $data=$a->viewdoctors();
             'max_appointment'=>$row['max_appointment']
         ];
     }
-
+ 
     if(isset($_POST['btnbook'])){
         $date= $_POST['btnbook'];
         $res=$a->saveappointment($doctorid,$userid,$date);
@@ -136,25 +136,39 @@ $data=$a->viewdoctors();
     }
 </style>
 <script>
-var sched=<?=json_encode($sched)?>;
-var eventlist = sched.map(function(item) {
-  return {
-    title: 'Clinic Schedule',
-    daysOfWeek: [ parseInt(item.day) ], 
-    startTime: item.time1,
-    endTime: item.time2,
-    maxAppointment:item.max_appointment
-  };
+var sched = <?= json_encode($sched) ?>;
+
+// Generate actual events for the next 120 days
+var eventlist = [];
+var today = new Date();
+var endDate = new Date();
+endDate.setDate(today.getDate() + 120); // next 120 days
+
+sched.forEach(item => {
+    var current = new Date(today);
+    while (current <= endDate) {
+        if (current.getDay() === parseInt(item.day)) {
+            let dateStr = current.toISOString().split('T')[0];
+            eventlist.push({
+                title: 'Clinic Schedule',
+                start: dateStr + 'T' + item.time1,
+                end: dateStr + 'T' + item.time2,
+                extendedProps: {
+                    maxAppointment: item.max_appointment
+                },
+                allDay: false
+            });
+        }
+        current.setDate(current.getDate() + 1);
+    }
 });
 
-eventlist.push({
-  title: 'Mr. Castro Appointment',
-  start: '2025-11-13T10:00:00', // specific date + time
-  end: '2025-11-13T10:30:00'
-});
-var max=eventlist[0].maxAppointment;
-var count=eventlist.length-1;
-var page="booking";
+var max = eventlist.length > 0 ? eventlist[0].extendedProps.maxAppointment : 0;
+var count = eventlist.length-1;
+var page = "booking";
+
+console.log(eventlist);
 </script>
+
 <script src="Resources/calendar.js"></script>
 <link rel="stylesheet" href="Resources/calendar.css">
