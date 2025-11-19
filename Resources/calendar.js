@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (apcount === 0) {
         alert("No appointments on " + clickedDate);
       } else {
-        
+        if(page=="client"){
         //alert("Appointments on " + clickedDate + ": " + apcount + " / " + max);
        var html=`
         <div class="text-center mb-3">
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
        `;
        document.getElementById("appointmentDetails").innerHTML=html;
-
+      }
 
        if(page=='booking'){
         var myModal = new bootstrap.Modal(document.getElementById('appointmentmodal'));
@@ -162,6 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var dow = new Date(dateStr).getDay();
       if(page=='booking'){
         var scheduleEvent = eventlist.find(e => e.daysOfWeek.includes(dow));
+
       }else if(page=='client'){
         var scheduleEvent = eventlist.find(e => e.start);
 
