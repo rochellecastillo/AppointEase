@@ -2,7 +2,7 @@
 session_start(); 
 require_once'Class/Session.php';
 require_once'Class/Database.php';
-
+require_once'Class/Appointment.php';
 new Session();
 
 // Get doctor's user_id from session
@@ -92,11 +92,7 @@ class DoctorDashboard extends Database {
     }
 }
 
-$dashboard = new DoctorDashboard();
-$todayAppointments = $dashboard->getTodayAppointments($doctor_id);
-$upcomingAppointments = $dashboard->getUpcomingAppointments($doctor_id);
-$schedule = $dashboard->getDoctorSchedule($doctor_id);
-$stats = $dashboard->getStatistics($doctor_id);
+
 
 $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 ?>
@@ -110,7 +106,28 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
 </head>
 <body class="text-secondary bg-light">
     <?php include_once'Resources/usernavbar.php';?>
-    
+    <?php
+    $a=new Appointment();
+    if(isset($_POST['btnsave'])){
+        $id=$_POST['bookingid'];
+        $status=$_POST['bookstatus'];
+        $res=json_decode($a->updatestatus($id,$status),true);
+        echo'
+        <script>
+            Swal.fire({
+                title: "Booking Status",
+                text: "'.$res['message'].'",
+                icon: "'.$res['icon'].'"
+            });
+        </script>
+        ';
+    }
+    $dashboard = new DoctorDashboard();
+    $todayAppointments = $dashboard->getTodayAppointments($doctor_id);
+    $upcomingAppointments = $dashboard->getUpcomingAppointments($doctor_id);
+    $schedule = $dashboard->getDoctorSchedule($doctor_id);
+    $stats = $dashboard->getStatistics($doctor_id);
+    ?>
     <div class="container-fluid py-4">
         <!-- Header with Time -->
         <div class="row mb-4">
@@ -219,7 +236,7 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach ($todayAppointments as $apt): ?>
+                                        <?php foreach ($todayAppointments as $apt):?>     
                                         <tr>
                                             <td>
                                                 <strong><?php echo htmlspecialchars($apt['first_name'] . ' ' . $apt['last_name']); ?></strong><br>
@@ -230,15 +247,23 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
                                             <td><small><?php echo htmlspecialchars($apt['address']); ?></small></td>
                                             <td>
                                                 <?php if ($apt['status'] == 0): ?>
-                                                    <span class="badge bg-warning">Pending</span>
+                                                    <span class="badge bg-warning">Confirmed</span>
                                                 <?php elseif ($apt['status'] == 1): ?>
-                                                    <span class="badge bg-success">Confirmed</span>
+                                                    <span class="badge bg-success">Completed</span>
                                                 <?php else: ?>
                                                     <span class="badge bg-danger">Cancelled</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <button class="btn btn-sm btn-primary" onclick="viewPatient(<?php echo $apt['id']; ?>)">
+                                                <button 
+                                                    class="btn btn-sm btn-primary btnselect" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#updatemodal"
+                                                    data-id="<?= $apt['id']; ?>"
+                                                    data-fname="<?= $apt['first_name']; ?>"
+                                                    data-lname="<?= $apt['last_name']; ?>"
+                                                    data-address="<?= htmlspecialchars($apt['address']); ?>"
+                                                    data-contact="<?= $apt['contact']; ?>">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </button>
                                             </td>
@@ -280,9 +305,9 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
                                             <span class="badge bg-info"><?php echo date('M d, Y', strtotime($apt['booking_date'])); ?></span>
                                             <br>
                                             <?php if ($apt['status'] == 0): ?>
-                                                <span class="badge bg-warning mt-1">Pending</span>
+                                                <span class="badge bg-warning mt-1">Confirmed</span>
                                             <?php elseif ($apt['status'] == 1): ?>
-                                                <span class="badge bg-success mt-1">Confirmed</span>
+                                                <span class="badge bg-success mt-1">Completed</span>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -328,17 +353,17 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
                                 </div>
                                 <?php endforeach; ?>
                             </div>
-                            <div class="mt-3">
+                            <!--div class="mt-3">
                                 <a href="schedule.php" class="btn btn-sm btn-outline-primary w-100">
                                     <i class="fa-solid fa-pen"></i> Edit Schedule
                                 </a>
-                            </div>
+                            </div-->
                         <?php endif; ?>
                     </div>
                 </div>
 
                 <!-- Quick Actions -->
-                <div class="card border-0 shadow-sm">
+                <!--div class="card border-0 shadow-sm">
                     <div class="card-header bg-white border-bottom">
                         <h5 class="mb-0"><i class="fa-solid fa-bolt"></i> Quick Actions</h5>
                     </div>
@@ -358,12 +383,52 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
                             </a>
                         </div>
                     </div>
-                </div>
+                </div-->
             </div>
         </div>
     </div>
 
-    <?php include_once'Resources/tawkto.php'; ?>
+    
+<!-- The Modal -->
+<div class="modal" id="updatemodal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <!-- Modal Header -->
+      <div class="modal-header bg-primary text-white">
+        <h4 class="modal-title"><i class="fa-solid fa-book"></i> Booking Status</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+       <form method="POST">                              
+      <!-- Modal body -->
+        <div class="modal-body">
+            <input type="hidden" id="bookingid" name="bookingid">
+            <h4 id="clientname">Juan dela Cruz</h4>
+            <div id="clientcontact" style="margin-top:-0.5em">09999999999</div>
+            <div id="clientaddress" style="margin-top:-0.5em">Rosario, Batangas</div>
+            <div class="row"><hr></div>
+            <div class="row">
+                <div class="col-md-5">
+                    <label for="bookstatus">Status</label>
+                    <select class="form-control" name="bookstatus" id="bookstatus" required>
+                        <option value="" selected readonly>-</option>
+                        <option value="1">Completed</option>
+                        <option value="2">Cancelled</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal footer -->
+        <div class="modal-footer">
+            <button type="submit" name="btnsave" class="btn btn-success"><i class="fa-solid fa-floppy-disk"></i> Apply</button>
+            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+        </div>
+      </form>   
+
+    </div>
+  </div>
+</div>
 </body>
 </html>
 
@@ -437,4 +502,11 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
         // Navigate to patient details page or show modal
         window.location.href = 'appointment_details.php?id=' + appointmentId;
     }
+
+    $(".btnselect").click(function(){
+        $("#bookingid").val($(this).data("id"));
+        $("#clientname").text($(this).data("fname")+" "+$(this).data("lname"));
+        $("#clientcontact").text($(this).data("contact"));
+        $("#clientaddress").text($(this).data("address"));
+    });
 </script>

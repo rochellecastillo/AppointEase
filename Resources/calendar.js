@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         //badge.textContent = count-1 + " / " + max;
         if(page=='booking'){
-          badge.textContent = count + " / " + max;
+          badge.textContent = info.event.extendedProps.count + " / " + max;
         }else if(page=='client'){
           badge.innerHTML = `
           <div><i class="fa-solid fa-eye"></i></div>

@@ -28,6 +28,7 @@ $data=$a->viewdoctors();
     $name=$row['last_name'].', '.$row['first_name'];
     $specialization=$row['specialization'];
     $sched=[];
+    $sched2=[];
     $userid=$_SESSION['user_id'];
     foreach($data as $row){
         $sched[]=[
@@ -35,6 +36,11 @@ $data=$a->viewdoctors();
             'time1'=>$row['time'],
             'time2'=>$row['time2'],
             'max_appointment'=>$row['max_appointment']
+        ];
+    }
+    foreach($data2 as $row){
+        $sched2[]=[
+            'day'=>$row['booking_date']
         ];
     }
  
@@ -137,9 +143,11 @@ $data=$a->viewdoctors();
 </style>
 <script>
 var sched = <?= json_encode($sched) ?>;
+var sched2 = <?= json_encode($sched2) ?>;
 
 // Generate actual events for the next 120 days
 var eventlist = [];
+var bookinglist = [];
 var today = new Date();
 var endDate = new Date();
 endDate.setDate(today.getDate() + 120); // next 120 days
@@ -153,6 +161,7 @@ sched.forEach(item => {
                 title: 'Clinic Schedule',
                 start: dateStr + 'T' + item.time1,
                 end: dateStr + 'T' + item.time2,
+                count:5,
                 extendedProps: {
                     maxAppointment: item.max_appointment
                 },
@@ -162,9 +171,16 @@ sched.forEach(item => {
         current.setDate(current.getDate() + 1);
     }
 });
+sched2.forEach(item=>{
+    bookinglist.push({
+        title:'Booking',
+        start: item.booking_date, 
+        end: item.booking_date 
+    });
+});
 
 var max = eventlist.length > 0 ? eventlist[0].extendedProps.maxAppointment : 0;
-var count = eventlist.length-1;
+var count = eventlist.length;
 var page = "booking";
 
 console.log(eventlist);

@@ -71,5 +71,23 @@ Class Appointment extends Database{
             ]);
         }
     }
+    public function updatestatus($id,$status){
+        $sql="update tblappointment set Status=? where id=?";
+        $stmt=$this->conn->prepare($sql);
+        if($stmt->execute([$status,$id])){
+            return json_encode([
+                'success'=>true,
+                'message'=>'Appointment Status Changed',
+                'icon'=>'success'
+
+            ]);
+        }else{
+            return json_encode([
+                'success'=>false,
+                'message'=>$this->conn->error,
+                'icon'=>'danger'
+            ]);
+        }
+    }
 }
 ?>
