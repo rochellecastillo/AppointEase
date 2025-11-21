@@ -65,17 +65,19 @@ document.addEventListener('DOMContentLoaded', function() {
                   ? '<span class="status-badge status-pending">Completed</span>'
                     : '<span class="status-badge status-cancelled">Cancelled</span>'}
                 </div>
-                  
+                    ${eventsOnDate[0].extendedProps.status === 0 ? `
                     <button class="btn btn-danger w-100 mb-2" onclick="cancelAppointment(${eventsOnDate[0].extendedProps.id})">
                         <i class="fa-solid fa-times me-2"></i>Cancel Appointment
                     </button>
                     <button class="btn btn-outline-primary w-100" onclick="rescheduleAppointment()">
                         <i class="fa-solid fa-calendar-alt me-2"></i>Reschedule
                     </button>
+                    `:""}
                   
                 
        `;
        document.getElementById("appointmentDetails").innerHTML=html;
+  
       }
 
        if(page=='booking'){
