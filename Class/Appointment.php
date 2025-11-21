@@ -89,5 +89,12 @@ Class Appointment extends Database{
             ]);
         }
     }
+    public function appointmentbadge($doctorid){
+        $sql="select count(*) as aptcount from tblappointment where doctor=? and status=0 and booking_date>=NOW()";
+        $stmt=$this->conn->prepare($sql);
+        $stmt->execute([$doctorid]);
+        $row=$stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['aptcount'];
+    }
 }
 ?>

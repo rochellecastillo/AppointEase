@@ -105,9 +105,10 @@ $daysOfWeek = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
     <?php include_once'Resources/include.php'?>
 </head>
 <body class="text-secondary bg-light">
-    <?php include_once'Resources/usernavbar.php';?>
-    <?php
+    <?php 
     $a=new Appointment();
+    include_once'Resources/navbar.php';?>
+    <?php
     if(isset($_POST['btnsave'])){
         $id=$_POST['bookingid'];
         $status=$_POST['bookstatus'];
