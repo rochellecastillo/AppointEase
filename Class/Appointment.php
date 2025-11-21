@@ -8,6 +8,17 @@ Class Appointment extends Database{
         $data=$stmt->fetchAll(PDO::FETCH_ASSOC);
         return $data;
     }
+    public function displayallappointments($choice){
+        if($choice=='all'){
+            $sql="select a.*,i.first_name,i.last_name from tblappointment a inner join tblinfo i on a.doctor = i.user_id order by a.id DESC";
+        }else if($choice=='approved'){
+            $sql="select a.*,i.first_name,i.last_name from tblappointment a inner join tblinfo i on a.doctor = i.user_id where a.status = 0 order by a.id DESC";
+        }
+        $stmt=$this->conn->prepare($sql);
+        $stmt->execute();
+        $data=$stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $data;
+    }
     public function viewdoctors(){
         $sql="select i.* from tblinfo i inner join tbluser u on i.user_id=u.user_id where u.user_type='user' and u.status=1";
         $stmt=$this->conn->prepare($sql);

@@ -104,7 +104,7 @@ $recentAppointments = $stmt->fetchAll();
     <div class="container-fluid py-4">
         <!-- Statistics Cards -->
         <div class="row mb-4">
-            <div class="col-md-3 mb-3">
+            <div class="col-md-3 mb-3 dboard" value="totalappointment">
                 <div class="stat-card bg-primary text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -117,11 +117,11 @@ $recentAppointments = $stmt->fetchAll();
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
+            <div class="col-md-3 mb-3 dboard" value="approved">
                 <div class="stat-card bg-warning text-dark">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="stat-label">Pending</div>
+                            <div class="stat-label">Approved</div>
                             <div class="stat-number"><?= $pendingAppointments ?></div>
                         </div>
                         <div class="stat-icon">
@@ -130,7 +130,7 @@ $recentAppointments = $stmt->fetchAll();
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
+            <div class="col-md-3 mb-3 dboard" value="totaldoctor">
                 <div class="stat-card bg-success text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -143,7 +143,7 @@ $recentAppointments = $stmt->fetchAll();
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
+            <div class="col-md-3 mb-3 dboard" value="totalpatient">
                 <div class="stat-card bg-info text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -164,14 +164,21 @@ $recentAppointments = $stmt->fetchAll();
             <div class="col-lg-8 mb-4">
                 <div class="calendar-container bg-white p-3">
                     <h5 class="mb-3"><i class="fa-solid fa-calendar me-2"></i>Appointment Calendar</h5>
-                    <iframe 
+                    <!--iframe 
                         class="w-100" 
                         src="https://calendar.google.com/calendar/embed?src=sorahaiiro1%40gmail.com&ctz=Asia%2FManila" 
                         style="border: 0" 
                         height="500" 
                         frameborder="0" 
                         scrolling="no">
-                    </iframe>
+                    </iframe-->
+                    <table class="table" id="resulttable">
+                        <thead>
+                        </thead>
+                        <tbody>
+
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -198,9 +205,9 @@ $recentAppointments = $stmt->fetchAll();
                                     </td>
                                     <td>
                                         <?php if ($apt['status'] == 0): ?>
-                                            <span class="badge badge-pending">Pending</span>
+                                            <span class="badge badge-pending">Approved</span>
                                         <?php elseif ($apt['status'] == 1): ?>
-                                            <span class="badge badge-approved">Approved</span>
+                                            <span class="badge badge-approved">Completed</span>
                                         <?php else: ?>
                                             <span class="badge badge-cancelled">Cancelled</span>
                                         <?php endif; ?>
@@ -215,7 +222,7 @@ $recentAppointments = $stmt->fetchAll();
         </div>
 
         <!-- Quick Actions -->
-        <div class="row">
+        <!--div class="row">
             <div class="col-12">
                 <div class="table-container">
                     <h5 class="mb-3"><i class="fa-solid fa-bolt me-2"></i>Quick Actions</h5>
@@ -243,9 +250,118 @@ $recentAppointments = $stmt->fetchAll();
                     </div>
                 </div>
             </div>
-        </div>
+        </div-->
     </div>
-
-    <?php include_once 'Resources/tawkto.php'; ?>
 </body>
 </html>
+<script>
+    $(document).ready(function(){
+        $(".dboard").click(function(){
+            let choice=$(this).attr("value");
+            $.ajax({
+                url: "Request/dashboarddetails.php",
+                type: "POST",
+                data: {choice: choice},
+                success: function(response){
+                    res=JSON.parse(response);
+                    if(choice=="totalappointment" || choice=="approved"){
+                        //alert(res.length);
+                         let table = $("#resulttable");
+
+                        // Clear previous table content
+                        table.find("thead").empty();
+                        table.find("tbody").empty();
+
+                        // Set table headers dynamically
+                        let headers = ["#", "Appointment Date", "Doctor", "Status"];
+                        let thead = "<tr>";
+                        headers.forEach(h => {
+                            thead += `<th>${h}</th>`;
+                        });
+                        thead += "</tr>";
+                        table.find("thead").append(thead);
+
+                        res.forEach((row, index) => {
+                            let statusText = "";
+                            if(row.status == 0) statusText = "Approved";
+                            else if(row.status == 1) statusText = "Completed";
+                            else statusText = "Cancelled";
+
+                            let tr = `<tr>
+                                        <td>${index + 1}</td>
+                                        <td>${formatdate(row.booking_date)}</td>
+                                        <td>${row.last_name}, ${row.first_name}</td>
+                                        <td>${statusText}</td>
+                                    </tr>`;
+                            table.find("tbody").append(tr);
+                        });
+                    }else if(choice=="totaldoctor" || choice=="totalpatient"){
+                        //alert(res.length);
+                         let table = $("#resulttable");
+
+                        // Clear previous table content
+                        table.find("thead").empty();
+                        table.find("tbody").empty();
+
+                        // Set table headers dynamically
+                        let headers;
+                        if(choice=="totaldoctor"){
+                            headers = ["#", "Name","Gender", "Specialization", "Address","Contact"];
+                        }else{
+                            headers = ["#", "Name","Gender", "Address","Contact"];
+                        }
+                        let thead = "<tr>";
+                        headers.forEach(h => {
+                            thead += `<th>${h}</th>`;
+                        });
+                        thead += "</tr>";
+                        table.find("thead").append(thead);
+
+                        res.forEach((row, index) => {
+                            let tr;
+                            if(choice=="totaldoctor"){
+
+                                tr = `<tr>
+                                <td>${index + 1}</td>
+                                <td>${row.last_name}, ${row.first_name}</td>
+                                <td>${row.gender}</td>
+                                <td>${row.specialization}</td>
+                                <td>${row.address}</td>
+                                <td>${row.contact}</td>
+                                </tr>`;
+                            }else{
+                                tr = `<tr>
+                                <td>${index + 1}</td>
+                                <td>${row.last_name}, ${row.first_name}</td>
+                                <td>${row.gender}</td>
+                                <td>${row.address}</td>
+                                <td>${row.contact}</td>
+                                </tr>`;
+                            }
+                            table.find("tbody").append(tr);
+                        });
+                    }
+                },
+                 error: function(xhr, status, error){
+                    console.error("AJAX Error:", error);
+                    console.log("Status:", status);
+                    console.log("Response:", xhr.responseText);
+                }
+            });
+        });
+    });
+
+    function formatdate(dateStr){
+        let dateObj = new Date(dateStr);
+        // Format the date
+        let formattedDate = dateObj.toLocaleDateString('en-US', {
+            month: 'short',  // short month name
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        // Add a dot after the month abbreviation
+        formattedDate = formattedDate.replace(/^(\w{3})/, '$1.');
+        return formattedDate;
+    }
+</script>
