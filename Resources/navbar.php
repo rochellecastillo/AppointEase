@@ -1,7 +1,9 @@
 <?php
   if($_SESSION['role']=='admin'){$homepage='main.php';}
-  else if($_SESSION['role']=='user'){$homepage='usermain.php';}
-  else if($_SESSION['role']=='client'){$homepage='clientmain.php';}
+  else if($_SESSION['role']=='user'){
+    $homepage='usermain.php';
+    $aptcount=$a->appointmentbadge($_SESSION['user_id']);
+  }else if($_SESSION['role']=='client'){$homepage='clientmain.php';}
 ?>
 <nav class="navbar navbar-expand-sm bg-primary navbar-dark">
   <div class="container-fluid">
@@ -12,7 +14,7 @@
     <div class="collapse navbar-collapse" id="collapsibleNavbar">
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link" href="<?=$homepage?>">Home</a>
+          <a class="nav-link" href="<?=$homepage?>">Home <?php if(isset($aptcount)){echo '<div class="badge bg-danger">'.$aptcount.'</div>';}?></a>
         </li>
         <?php
           if($_SESSION['role']=='admin'){
@@ -35,6 +37,7 @@
               </li>
           ';
           }else if($_SESSION['role']=='user'){
+            
 
           }
         ?>
