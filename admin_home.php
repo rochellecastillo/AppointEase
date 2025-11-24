@@ -66,7 +66,8 @@ try {
     }
 
 } catch (Exception $ex) {
-    die('DB Error: ' . htmlspecialchars($ex->getMessage()));
+    error_log($ex->getMessage()); // Logs to server error log
+    die('A system error occurred. Please contact support.');
 }
 ?>
 <!doctype html>
@@ -179,7 +180,7 @@ try {
                     <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-blue-600 group-hover:text-white transition"><i data-lucide="user-plus" width="20"></i></div>
                     <span class="font-semibold text-sm">Add Doctor</span>
                 </a>
-                <a href="register_patient.php" class="bg-white border border-gray-200 p-4 rounded-xl flex flex-col items-center text-center hover:border-green-500 hover:shadow-md transition group">
+                <a href="add_patient.php" class="bg-white border border-gray-200 p-4 rounded-xl flex flex-col items-center text-center hover:border-green-500 hover:shadow-md transition group">
                     <div class="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-green-600 group-hover:text-white transition"><i data-lucide="heart-pulse" width="20"></i></div>
                     <span class="font-semibold text-sm">Add Patient</span>
                 </a>

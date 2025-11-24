@@ -3,6 +3,7 @@
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
+require_once 'iprog_sms.php'; // <--- 1. Include the SMS helper
 
 session_require_auth(['doctor']);
 $user_id = session_get_user_id();
@@ -12,7 +13,6 @@ $message = '';
 $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF Check could be added here
     if (isset($_POST['action_type'])) {
         $appt_id = $_POST['appt_id'];
         $action = $_POST['action_type'];
@@ -25,11 +25,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $new_status = ($action === 'approve') ? 1 : 0; // 1=Confirmed, 0=Cancelled
             
             try {
+                $pdo->beginTransaction(); // Start Transaction
+
+                // Update Status
                 $stmt = $pdo->prepare("UPDATE tblappointment SET status = ? WHERE id = ?");
                 $stmt->execute([$new_status, $appt_id]);
-                $message = ($action === 'approve') ? "Appointment confirmed successfully." : "Appointment declined.";
+
+                // --- SMS LOGIC START ---
+                if ($action === 'approve') {
+                    // 1. Fetch Patient Info & Appointment Details
+                    $infoStmt = $pdo->prepare("
+                        SELECT i.contact, i.first_name, a.booking_date, a.booking_time 
+                        FROM tblappointment a 
+                        JOIN tblinfo i ON a.user_id = i.user_id 
+                        WHERE a.id = ?
+                    ");
+                    $infoStmt->execute([$appt_id]);
+                    $apptData = $infoStmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($apptData && !empty($apptData['contact'])) {
+                        // 2. Construct Message
+                        $formattedDate = date('M d, Y', strtotime($apptData['booking_date']));
+                        $formattedTime = date('h:i A', strtotime($apptData['booking_time']));
+                        
+                        $smsContent = "Hello {$apptData['first_name']}, your appointment request for $formattedDate at $formattedTime has been CONFIRMED by the doctor. - AppointEase";
+
+                        // 3. Send SMS
+                        iprog_send_sms($apptData['contact'], $smsContent);
+                    }
+                }
+                // --- SMS LOGIC END ---
+
+                $pdo->commit(); // Commit Transaction
+
+                $message = ($action === 'approve') ? "Appointment confirmed & SMS sent." : "Appointment declined.";
                 $msg_type = ($action === 'approve') ? "success" : "error";
+
             } catch (Exception $e) {
+                $pdo->rollBack();
                 $message = "Database Error: " . $e->getMessage();
                 $msg_type = "error";
             }
@@ -95,7 +128,6 @@ function getAge($dob) {
         <?php include 'includes/doctor_sidebar.php'; ?>
 
         <main class="flex-1 overflow-auto w-full">
-            <!-- Mobile Header -->
             <div class="md:hidden bg-white p-4 border-b flex justify-between items-center sticky top-0 z-30">
                 <span class="font-bold text-lg text-slate-800">AppointEase</span>
                 <button id="mobileMenuBtn" class="p-2 bg-slate-100 rounded-lg"><i data-lucide="menu" width="20"></i></button>
@@ -109,7 +141,6 @@ function getAge($dob) {
                         <p class="text-slate-500">Manage your patient bookings and schedule.</p>
                     </div>
                     
-                    <!-- Filter Tabs -->
                     <div class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm inline-flex">
                         <a href="?status=upcoming" class="px-4 py-2 rounded-lg text-sm font-medium transition <?= $filter === 'upcoming' ? 'bg-green-100 text-green-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50' ?>">
                             Upcoming
@@ -130,7 +161,6 @@ function getAge($dob) {
                     </div>
                 <?php endif; ?>
 
-                <!-- Appointment Cards -->
                 <div class="space-y-4">
                     <?php if (empty($appointments)): ?>
                         <div class="bg-white rounded-2xl border border-slate-200 border-dashed p-12 text-center">
@@ -149,13 +179,11 @@ function getAge($dob) {
                         ?>
                         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition flex flex-col md:flex-row gap-6 items-start md:items-center group">
                             
-                            <!-- Time Box -->
                             <div class="flex-shrink-0 w-full md:w-32 text-center bg-slate-50 rounded-lg p-3 border border-slate-100 group-hover:border-green-200 group-hover:bg-green-50 transition-colors">
                                 <p class="text-xs font-bold text-slate-500 uppercase group-hover:text-green-600"><?= date('M d', strtotime($apt['booking_date'])) ?></p>
                                 <p class="text-xl font-bold text-slate-800 group-hover:text-green-700"><?= $timeStr ?></p>
                             </div>
 
-                            <!-- Patient Info -->
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-3 mb-1">
                                     <h3 class="text-lg font-bold text-slate-800 truncate"><?= $patientName ?></h3>
@@ -175,7 +203,6 @@ function getAge($dob) {
                                 </div>
                             </div>
 
-                            <!-- Actions -->
                             <div class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
                                 <?php if($filter === 'pending'): ?>
                                     <form method="POST" class="flex gap-2 w-full">

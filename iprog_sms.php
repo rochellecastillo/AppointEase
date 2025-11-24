@@ -111,4 +111,77 @@ function iprog_verify_otp(string $phone, string $otp): array {
     }
 
     return ['success' => $ok, 'status' => $http, 'body' => $parsed ?? $resp];
+} // <- properly close iprog_verify_otp here
+
+/**
+ * Send a regular SMS Notification
+ * Endpoint: /sms/send (Standard iProg endpoint for custom messages)
+ * @return array ['success'=>bool,'status'=>int,'body'=>...]
+ */
+function iprog_send_sms(string $phone, string $message): array {
+    $phone_clean = iprog_normalize_phone($phone);
+    // Use documented endpoint
+    $url = IPROG_BASE . '/sms_messages';
+
+    // form fields (this matches the documentation examples)
+    $payload = http_build_query([
+        'api_token'    => IPROG_API_TOKEN,
+        'phone_number' => $phone_clean,
+        'message'      => $message
+        // 'sender_id' => 'AppointEase' // include only if your account requires it
+    ]);
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    // use application/x-www-form-urlencoded as many gateways accept this reliably
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+    $resp = curl_exec($ch);
+    $err  = curl_error($ch);
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    // Logging
+    $logDir = __DIR__ . '/logs';
+    if (!is_dir($logDir)) @mkdir($logDir, 0755, true);
+    $logFile = $logDir . '/sms.log';
+    $logEntry = [
+        'ts' => date('c'),
+        'url' => $url,
+        'payload' => [
+            'api_token' => '***REDACTED***',
+            'phone_number' => $phone_clean,
+            'message' => mb_substr($message, 0, 200)
+        ],
+        'http_code' => $http,
+        'curl_error' => $err ?: null,
+        'response_raw' => $resp,
+    ];
+    @file_put_contents($logFile, json_encode($logEntry, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+
+    if ($err) {
+        error_log("[AppointEase] iprog_send_sms curl error: $err");
+        return ['success' => false, 'status' => 0, 'body' => $err, 'log' => $logEntry];
+    }
+
+    $parsed = json_decode($resp, true);
+    $ok = false;
+
+    // Provider-specific success detection (adjustable)
+    if (is_array($parsed)) {
+        if ((isset($parsed['status']) && (strtolower((string)$parsed['status']) === 'success' || (int)$parsed['status'] === 200))
+            || (isset($parsed['data']) && isset($parsed['data']['message_id']))
+            || (isset($parsed['message']) && stripos($parsed['message'], 'sent') !== false)
+        ) {
+            $ok = true;
+        }
+    }
+
+    // Fallback: HTTP 2xx -> success
+    if (!$ok && $http >= 200 && $http < 300) $ok = true;
+
+    return ['success' => $ok, 'status' => $http, 'body' => $parsed ?? $resp, 'log' => $logEntry];
 }
