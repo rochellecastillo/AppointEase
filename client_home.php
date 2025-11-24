@@ -6,14 +6,6 @@ require_once 'db.php';
 
 session_require_auth(['user']); 
 
-// Handle Logout
-if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    log_security_event('logout', ['user_id' => session_get_user_id()]);
-    session_destroy_user();
-    header('Location: login.php?logout=success');
-    exit;
-}
-
 $user_id = session_get_user_id();
 $user_name = session_get_username();
 
@@ -241,5 +233,6 @@ $recentHistory = array_slice(array_reverse($recentHistory), 0, 3);
         document.getElementById('sidebar').classList.toggle('-translate-x-full');
     });
   </script>
+  <?php include_once 'tawkto.php'; ?>
 </body>
 </html>

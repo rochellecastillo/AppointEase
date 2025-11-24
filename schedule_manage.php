@@ -49,75 +49,77 @@ $message = '';
 $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $target_doctor = ($user_type === 'admin') ? $_POST['doctor_id'] : $user_id;
+    $target_doctor = ($user_type === 'admin') ? ($_POST['doctor_id'] ?? '') : $user_id;
     $todayStr = date('Y-m-d');
 
-    // 1. BLOCK DATE
-    if (isset($_POST['block_date'])) {
-        $date = $_POST['date_start'];
-        $reason = $_POST['reason'] ?? 'Unavailable';
-        
-        // VALIDATION: Prevent blocking past dates
-        if ($date < $todayStr) {
-            $message = "Error: You cannot block dates in the past.";
-            $msg_type = 'error';
-        } else {
+    if ($target_doctor) {
+        // 1. BLOCK DATE
+        if (isset($_POST['block_date'])) {
+            $date = $_POST['date_start'];
+            $reason = $_POST['reason'] ?? 'Unavailable';
+            
+            if ($date < $todayStr) {
+                $message = "Error: You cannot block dates in the past.";
+                $msg_type = 'error';
+            } else {
+                try {
+                    $stmt = $pdo->prepare("INSERT INTO tblnoappointment (doctor_id, date_start, date_end, reason) VALUES (?, ?, ?, ?)");
+                    $stmt->execute([$target_doctor, $date, $date, $reason]);
+                    $message = "Date blocked successfully.";
+                    $msg_type = 'success';
+                } catch (Exception $e) { 
+                    $message = "DB Error: " . $e->getMessage(); 
+                    $msg_type = 'error'; 
+                }
+            }
+        }
+
+        // 2. UNBLOCK DATE
+        if (isset($_POST['unblock_date'])) {
+            $date = $_POST['date_to_unblock'];
             try {
-                // Uses date_start/date_end columns from appointment(2).sql
-                $stmt = $pdo->prepare("INSERT INTO tblnoappointment (doctor_id, date_start, date_end, reason) VALUES (?, ?, ?, ?)");
-                // We insert the same date for start/end for a single day block
-                $stmt->execute([$target_doctor, $date, $date, $reason]);
-                $message = "Date blocked successfully.";
+                $stmt = $pdo->prepare("DELETE FROM tblnoappointment WHERE doctor_id = ? AND date_start = ?");
+                $stmt->execute([$target_doctor, $date]);
+                $message = "Date unblocked successfully.";
+                $msg_type = 'success';
+            } catch (Exception $e) {
+                $message = "DB Error: " . $e->getMessage();
+                $msg_type = 'error';
+            }
+        }
+
+        // 3. UPDATE WEEKLY ROSTER
+        if (isset($_POST['update_roster'])) {
+            $day = $_POST['day_index']; 
+            $time_start = $_POST['time_start'];
+            $time_end = $_POST['time_end'];
+            $max = $_POST['max_appointment'];
+            $is_active = isset($_POST['is_active']);
+
+            try {
+                // Clear existing roster for this day index first
+                $pdo->prepare("DELETE FROM tblschedule WHERE user_id = ? AND day = ?")->execute([$target_doctor, $day]);
+
+                if ($is_active && $time_start && $time_end) {
+                    $stmt = $pdo->prepare("INSERT INTO tblschedule (user_id, day, time, time2, max_appointment) VALUES (?, ?, ?, ?, ?)");
+                    $stmt->execute([$target_doctor, $day, $time_start, $time_end, $max]);
+                    $message = "Weekly schedule updated.";
+                } else {
+                    $message = "Weekly schedule removed for this day.";
+                }
                 $msg_type = 'success';
             } catch (Exception $e) { 
                 $message = "DB Error: " . $e->getMessage(); 
                 $msg_type = 'error'; 
             }
         }
-    }
-
-    // 2. UNBLOCK DATE (Remove Block)
-    if (isset($_POST['unblock_date'])) {
-        $date = $_POST['date_to_unblock'];
-        try {
-            // Remove block where date_start matches (assuming single day blocks for this UI)
-            $stmt = $pdo->prepare("DELETE FROM tblnoappointment WHERE doctor_id = ? AND date_start = ?");
-            $stmt->execute([$target_doctor, $date]);
-            $message = "Date unblocked successfully.";
-            $msg_type = 'success';
-        } catch (Exception $e) {
-            $message = "DB Error: " . $e->getMessage();
-            $msg_type = 'error';
-        }
-    }
-
-    // 3. UPDATE ROSTER
-    if (isset($_POST['update_roster'])) {
-        $day = $_POST['day_index']; 
-        $time_start = $_POST['time_start'];
-        $time_end = $_POST['time_end'];
-        $max = $_POST['max_appointment'];
-        $is_active = isset($_POST['is_active']);
-
-        try {
-            $pdo->prepare("DELETE FROM tblschedule WHERE user_id = ? AND day = ?")->execute([$target_doctor, $day]);
-
-            if ($is_active && $time_start && $time_end) {
-                $stmt = $pdo->prepare("INSERT INTO tblschedule (user_id, day, time, time2, max_appointment) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$target_doctor, $day, $time_start, $time_end, $max]);
-                $message = "Weekly schedule updated.";
-            } else {
-                $message = "Weekly schedule removed for this day.";
-            }
-            $msg_type = 'success';
-        } catch (Exception $e) { 
-            $message = "DB Error: " . $e->getMessage(); 
-            $msg_type = 'error'; 
-        }
+    } else {
+        $message = "Error: Doctor ID missing.";
+        $msg_type = 'error';
     }
 }
 
-// Fetch Doctors
+// Fetch Doctors List (Admin only)
 $doctors = [];
 if ($user_type === 'admin') {
     $doctors = $pdo->query("SELECT u.user_id, i.first_name, i.last_name FROM tbluser u JOIN tblinfo i ON u.user_id = i.user_id WHERE u.user_type='doctor'")->fetchAll();
@@ -142,15 +144,13 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
         .event-roster { background: #f3e8ff; color: #6b21a8; border-left: 3px solid #9333ea; }
         .event-block { background: #fef2f2; color: #991b1b; border-left: 3px solid #ef4444; }
         .other-month { opacity: 0.4; pointer-events: none; background: #f9fafb; }
-        /* Past Date Styling */
         .day-past { background-color: #f3f4f6 !important; color: #9ca3af; cursor: not-allowed !important; opacity: 0.7; }
-        .day-past:hover { background-color: #f3f4f6 !important; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div class="flex h-screen overflow-hidden">
         
-        <?php include 'includes/admin_sidebar.php'; ?>
+        <?php include ($user_type === 'admin' ? 'includes/admin_sidebar.php' : 'includes/doctor_sidebar.php'); ?>
 
         <main class="flex-1 overflow-auto">
             <div class="p-6 max-w-7xl mx-auto">
@@ -158,7 +158,7 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                 <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-900">Schedule Calendar</h1>
-                        <p class="text-gray-500 text-sm">Click on any future date to manage availability.</p>
+                        <p class="text-gray-500 text-sm">Manage availability and blocked dates.</p>
                     </div>
                     
                     <?php if($user_type === 'admin'): ?>
@@ -204,8 +204,7 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm" onclick="closeModal()"></div>
         
         <div class="fixed inset-0 z-10 overflow-y-auto">
-            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
                 <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
                     
                     <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-4 sm:px-6">
@@ -219,9 +218,10 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                     </div>
 
                     <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        
                         <div class="flex border-b border-gray-200 mb-4">
-                            <button onclick="switchModalTab('block')" id="tab-block" class="flex-1 py-2 text-sm font-bold text-red-600 border-b-2 border-red-600 focus:outline-none">Block Date</button>
-                            <button onclick="switchModalTab('roster')" id="tab-roster" class="flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-purple-600 focus:outline-none">Weekly Roster</button>
+                            <button onclick="switchModalTab('block')" id="tab-block" class="flex-1 py-2 text-sm font-bold text-red-600 border-b-2 border-red-600 focus:outline-none transition">Block Date (Exception)</button>
+                            <button onclick="switchModalTab('roster')" id="tab-roster" class="flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-purple-600 focus:outline-none transition">Weekly Roster</button>
                         </div>
 
                         <div id="content-block">
@@ -232,15 +232,9 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                                 <div class="p-4 bg-red-50 border border-red-100 rounded-xl text-center">
                                     <p class="text-red-800 font-bold">This date is currently blocked.</p>
                                     <p class="text-xs text-red-600 mb-4" id="blockReasonDisplay"></p>
-                                    
-                                    <div class="flex gap-3 justify-center">
-                                        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition">
-                                            Close
-                                        </button>
-                                        <button type="submit" name="unblock_date" class="px-4 py-2 bg-white border border-red-200 text-red-600 font-bold rounded-lg hover:bg-red-50 transition shadow-sm">
-                                            Remove Block
-                                        </button>
-                                    </div>
+                                    <button type="submit" name="unblock_date" class="px-4 py-2 bg-white border border-red-200 text-red-600 font-bold rounded-lg hover:bg-red-50 transition shadow-sm">
+                                        Remove Block
+                                    </button>
                                 </div>
                             </form>
 
@@ -250,20 +244,15 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                                 
                                 <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 flex gap-2 items-start">
                                     <i data-lucide="info" class="flex-shrink-0 w-4 h-4 mt-0.5"></i>
-                                    <span>Blocking this date will override any weekly roster schedule.</span>
+                                    <span>Blocking this specific date overrides the weekly schedule.</span>
                                 </div>
                                 
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label>
                                 <input type="text" name="reason" placeholder="e.g., Vacation, Seminar" class="w-full p-3 border border-gray-300 rounded-xl mb-6 focus:border-red-500 focus:ring-2 focus:ring-red-200 focus:outline-none transition">
                                 
-                                <div class="flex gap-3">
-                                    <button type="button" onclick="closeModal()" class="w-1/3 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition">
-                                        Cancel
-                                    </button>
-                                    <button type="submit" name="block_date" class="w-2/3 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow-lg shadow-red-200">
-                                        Confirm Block
-                                    </button>
-                                </div>
+                                <button type="submit" name="block_date" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow-lg shadow-red-200">
+                                    Confirm Block
+                                </button>
                             </form>
                         </div>
 
@@ -277,9 +266,9 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                                     <span>Modifies schedule for <strong>EVERY <span id="rosterDayName">Monday</span></strong>.</span>
                                 </div>
                                 
-                                <div class="flex items-center mb-4 p-3 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition" onclick="document.getElementById('rosterActive').click()">
+                                <div class="flex items-center mb-4 p-3 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition">
                                     <input type="checkbox" name="is_active" id="rosterActive" class="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer">
-                                    <label for="rosterActive" class="ml-3 text-sm font-bold text-gray-700 cursor-pointer select-none">Work on this day?</label>
+                                    <label for="rosterActive" class="ml-3 text-sm font-bold text-gray-700 cursor-pointer select-none w-full">Work on this day?</label>
                                 </div>
                                 
                                 <div id="rosterInputs" class="space-y-4 opacity-50 pointer-events-none transition-opacity duration-200">
@@ -299,17 +288,13 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                                     </div>
                                 </div>
 
-                                <div class="flex gap-3 mt-6">
-                                    <button type="button" onclick="closeModal()" class="w-1/3 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition">
-                                        Cancel
-                                    </button>
-                                    <button type="submit" name="update_roster" class="w-2/3 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition shadow-lg shadow-purple-200">
-                                        Save Recurring
-                                    </button>
-                                </div>
+                                <button type="submit" name="update_roster" class="w-full mt-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition shadow-lg shadow-purple-200">
+                                    Save Recurring Schedule
+                                </button>
                             </form>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -327,6 +312,7 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
         const monthDisplay = document.getElementById('monthDisplay');
         const grid = document.getElementById('calendarGrid');
 
+        // Init
         document.addEventListener('DOMContentLoaded', () => {
             if (doctorSelector) {
                 fetchData();
@@ -336,25 +322,28 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
 
         async function fetchData() {
             const docId = doctorSelector.value;
-            if (!docId) { renderCalendar(); return; }
+            if (!docId) return;
 
             monthDisplay.textContent = "Loading...";
             try {
                 const response = await fetch(`?action=get_calendar_data&doctor_id=${docId}`);
                 const data = await response.json();
+                
                 if (data.status === 'error') throw new Error(data.message);
+                
                 rosterData = data.roster || [];
                 leaveData = data.leaves || [];
                 renderCalendar();
             } catch (error) {
-                monthDisplay.textContent = "Error";
-                grid.innerHTML = `<div class="col-span-7 py-12 text-center text-red-500">${error.message}</div>`;
+                grid.innerHTML = `<div class="col-span-7 py-12 text-center text-red-500">Error: ${error.message}</div>`;
             }
         }
 
         function renderCalendar() {
             grid.innerHTML = '';
-            ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => grid.innerHTML += `<div class="day-header">${d}</div>`);
+            ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => 
+                grid.innerHTML += `<div class="day-header">${d}</div>`
+            );
 
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -362,89 +351,97 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
 
             const firstDayIndex = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            // Calculate Today (Reset Time)
             const today = new Date();
             today.setHours(0,0,0,0);
 
+            // Empty cells for prev month
             for (let i = 0; i < firstDayIndex; i++) {
-                grid.appendChild(Object.assign(document.createElement('div'), { className: 'day-cell other-month' }));
+                const cell = document.createElement('div');
+                cell.className = 'day-cell other-month';
+                grid.appendChild(cell);
             }
 
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateObj = new Date(year, month, d);
-                const dateStr = [dateObj.getFullYear(), String(dateObj.getMonth() + 1).padStart(2, '0'), String(dateObj.getDate()).padStart(2, '0')].join('-');
-                const dayIndex = dateObj.getDay();
+                const dateStr = [
+                    dateObj.getFullYear(), 
+                    String(dateObj.getMonth() + 1).padStart(2, '0'), 
+                    String(dateObj.getDate()).padStart(2, '0')
+                ].join('-');
                 
-                // Check Past
+                // Important: Map JS Day (0=Sun) to your DB Logic
+                // If DB uses 7 for Sunday, use: const dbDayIndex = (dayIndex === 0) ? 7 : dayIndex;
+                // If DB uses 1=Mon..7=Sun: const dbDayIndex = (dayIndex === 0) ? 7 : dayIndex;
+                // Assuming standard 0-6 for now based on your previous scripts, or 1-7.
+                // Let's use standard JS getDay() (0-6) for logic in JS, and match DB in PHP.
+                const dayIndex = dateObj.getDay(); 
+                
+                // Check Logic
                 const isPast = dateObj < today;
+                const leave = leaveData.find(l => dateStr >= l.date_start && dateStr <= l.date_end);
+                
+                // Find roster match. Note: Ensure DB `day` matches JS `dayIndex` format
+                // If DB is 1-7 (Mon-Sun), we need to convert JS 0-6 (Sun-Sat)
+                // Let's assume you fixed DB to 1-7. JS 0(Sun) -> 7. JS 1(Mon) -> 1.
+                let dbDay = (dayIndex === 0) ? 7 : dayIndex; 
+                const shift = rosterData.find(r => parseInt(r.day) === dbDay);
 
                 const cell = document.createElement('div');
                 cell.className = 'day-cell';
                 if (isPast) cell.classList.add('day-past');
-                
-                let content = `<span class="text-sm font-semibold text-gray-700">${d}</span>`;
 
-                // LOGIC: NO STACKING (Block Priority)
-                // 1. Check if Blocked
-                const leave = leaveData.find(l => dateStr >= l.date_start && dateStr <= l.date_end);
-                const shift = rosterData.find(r => parseInt(r.day) === dayIndex);
+                let html = `<span class="text-sm font-semibold text-gray-700">${d}</span>`;
 
                 if (leave) {
-                    content += `<div class="event-chip event-block">⛔ ${leave.reason}</div>`;
+                    html += `<div class="event-chip event-block">⛔ ${leave.reason}</div>`;
                     cell.style.background = '#fff1f2';
                 } else if (shift) {
-                    // Only show roster if NOT blocked
-                    content += `<div class="event-chip event-roster">${formatTime(shift.time)}-${formatTime(shift.time2)}</div>`;
+                    html += `<div class="event-chip event-roster">${formatTime(shift.time)}-${formatTime(shift.time2)}</div>`;
                 }
 
-                cell.innerHTML = content;
-                
-                // Only clickable if NOT past
+                cell.innerHTML = html;
+
                 if (!isPast) {
-                    cell.onclick = () => openModal(dateStr, dayIndex, shift, leave);
+                    cell.onclick = () => openModal(dateStr, dbDay, dayIndex, shift, leave);
                 }
 
                 grid.appendChild(cell);
             }
         }
 
-        function openModal(dateStr, dayIndex, shift, leave) {
+        function openModal(dateStr, dbDay, jsDayIndex, shift, leave) {
             const modal = document.getElementById('slotModal');
-            const parts = dateStr.split('-');
-            const dateObj = new Date(parts[0], parts[1]-1, parts[2]);
+            const dateObj = new Date(dateStr);
             
             document.getElementById('modalDateDisplay').textContent = dateObj.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-            document.getElementById('rosterDayName').textContent = daysOfWeek[dayIndex];
-            
-            // Set Inputs
+            document.getElementById('rosterDayName').textContent = daysOfWeek[jsDayIndex];
+
+            // Set Hidden Inputs
             document.getElementById('formBlockDate').value = dateStr;
-            document.getElementById('formRosterDayIndex').value = dayIndex;
             document.getElementById('formUnblockDate').value = dateStr;
+            document.getElementById('formRosterDayIndex').value = dbDay; // Send DB-compatible day index
             
             const docId = doctorSelector.value;
             if(document.getElementById('formBlockDocId')) document.getElementById('formBlockDocId').value = docId;
-            if(document.getElementById('formRosterDocId')) document.getElementById('formRosterDocId').value = docId;
             if(document.getElementById('formUnblockDocId')) document.getElementById('formUnblockDocId').value = docId;
+            if(document.getElementById('formRosterDocId')) document.getElementById('formRosterDocId').value = docId;
 
-            // Logic: If blocked, show Unblock Form
-            const blockForm = document.getElementById('blockForm');
-            const unblockForm = document.getElementById('unblockForm');
-            
-            if(leave) {
-                blockForm.classList.add('hidden');
-                unblockForm.classList.remove('hidden');
+            // Toggle Block/Unblock UI
+            if (leave) {
+                document.getElementById('blockForm').classList.add('hidden');
+                document.getElementById('unblockForm').classList.remove('hidden');
                 document.getElementById('blockReasonDisplay').textContent = `Reason: ${leave.reason}`;
                 switchModalTab('block');
             } else {
-                unblockForm.classList.add('hidden');
-                blockForm.classList.remove('hidden');
-                switchModalTab('roster'); // Default to Roster if free
+                document.getElementById('unblockForm').classList.add('hidden');
+                document.getElementById('blockForm').classList.remove('hidden');
+                switchModalTab('roster'); // Default to roster if free
             }
 
-            // Setup Roster UI
+            // Setup Roster Form
             const rosterInputs = document.getElementById('rosterInputs');
             const rosterActive = document.getElementById('rosterActive');
+            
             if (shift) {
                 rosterActive.checked = true;
                 document.getElementById('rosterStart').value = shift.time;
@@ -454,10 +451,13 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
             } else {
                 rosterActive.checked = false;
                 rosterInputs.classList.add('opacity-50', 'pointer-events-none');
+                // Default values
                 document.getElementById('rosterStart').value = '08:00';
                 document.getElementById('rosterEnd').value = '17:00';
             }
-            rosterActive.onchange = function() {
+
+            // Toggle inputs on checkbox click
+            rosterActive.onclick = function() {
                 if(this.checked) rosterInputs.classList.remove('opacity-50', 'pointer-events-none');
                 else rosterInputs.classList.add('opacity-50', 'pointer-events-none');
             };
@@ -466,19 +466,40 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
         }
 
         function closeModal() { document.getElementById('slotModal').classList.add('hidden'); }
+
         function switchModalTab(tab) {
-            document.getElementById('content-block').classList.add('hidden');
-            document.getElementById('content-roster').classList.add('hidden');
-            document.getElementById('tab-block').className = "flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-red-600 transition";
-            document.getElementById('tab-roster').className = "flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-purple-600 transition";
-            document.getElementById('content-' + tab).classList.remove('hidden');
-            document.getElementById('tab-' + tab).className = "flex-1 py-2 text-sm font-bold " + (tab === 'block' ? 'text-red-600 border-red-600' : 'text-purple-600 border-purple-600');
+            const blockContent = document.getElementById('content-block');
+            const rosterContent = document.getElementById('content-roster');
+            const tabBlock = document.getElementById('tab-block');
+            const tabRoster = document.getElementById('tab-roster');
+
+            if (tab === 'block') {
+                blockContent.classList.remove('hidden');
+                rosterContent.classList.add('hidden');
+                
+                tabBlock.className = "flex-1 py-2 text-sm font-bold text-red-600 border-b-2 border-red-600 focus:outline-none transition";
+                tabRoster.className = "flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-purple-600 focus:outline-none transition";
+            } else {
+                blockContent.classList.add('hidden');
+                rosterContent.classList.remove('hidden');
+
+                tabBlock.className = "flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-red-600 focus:outline-none transition";
+                tabRoster.className = "flex-1 py-2 text-sm font-bold text-purple-600 border-b-2 border-purple-600 transition";
+            }
         }
-        function formatTime(t) { if(!t)return''; const [h,m] = t.split(':'); const d=new Date(); d.setHours(h,m); return d.toLocaleTimeString('en-US', {hour:'numeric', minute:'numeric', hour12:true}); }
+
+        function formatTime(t) { 
+            if(!t) return ''; 
+            const [h, m] = t.split(':'); 
+            const d = new Date(); 
+            d.setHours(h, m); 
+            return d.toLocaleTimeString('en-US', {hour:'numeric', minute:'numeric', hour12:true}); 
+        }
         
-        document.getElementById('prevMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth()-1); renderCalendar(); };
-        document.getElementById('nextMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth()+1); renderCalendar(); };
-        document.getElementById('todayBtn').onclick = () => { currentDate = new Date(); renderCalendar(); };
+        // Month Nav
+        document.getElementById('prevMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth()-1); fetchData(); };
+        document.getElementById('nextMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth()+1); fetchData(); };
+        document.getElementById('todayBtn').onclick = () => { currentDate = new Date(); fetchData(); };
     </script>
 </body>
 </html>

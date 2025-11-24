@@ -1,5 +1,5 @@
 <?php
-// reports.php - Comprehensive Reports & Analytics with Date Filtering
+// reports.php - Comprehensive Reports & Analytics
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
@@ -14,24 +14,21 @@ $default_start_date = date('Y-m-d', strtotime('-30 days'));
 $start_date = $_GET['start_date'] ?? $default_start_date;
 $end_date = $_GET['end_date'] ?? $today;
 
-// Base WHERE clause and parameters for appointment queries
+// Base WHERE clause
 $where_clause = "WHERE a.booking_date >= :start_date AND a.booking_date <= :end_date";
 $params = [
     ':start_date' => $start_date,
     ':end_date' => $end_date
 ];
 
-// NOTE: The function e() is now loaded via require_once 'security_helper.php';
-
-// --- FETCH ALL REPORTS ---
 try {
     // 1. Appointment Status Breakdown
-    // Assuming status: 1=Confirmed/Completed, 0=Pending, 2=Cancelled (or other)
     $stmt = $pdo->prepare("
         SELECT 
             SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS confirmed_count,
-            SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS pending_count,
-            SUM(CASE WHEN status != 0 AND status != 1 THEN 1 ELSE 0 END) AS cancelled_count,
+            SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS pending_count,
+            SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) AS completed_count,
+            SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS cancelled_count,
             COUNT(*) as total_count
         FROM tblappointment a
         {$where_clause}
@@ -39,7 +36,7 @@ try {
     $stmt->execute($params);
     $status_stats = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // 2. Appointments per month (over the filtered period)
+    // 2. Appointments per month
     $stmt = $pdo->prepare("
         SELECT DATE_FORMAT(booking_date, '%Y-%m') as month, COUNT(*) as count 
         FROM tblappointment a
@@ -50,7 +47,7 @@ try {
     $stmt->execute($params);
     $monthly_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Top doctors by appointments
+    // 3. Top doctors
     $stmt = $pdo->prepare("
         SELECT a.doctor, i.first_name, i.last_name, i.specialization, COUNT(*) as count
         FROM tblappointment a
@@ -75,9 +72,32 @@ try {
     $stmt->execute($params);
     $specialization_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 5. Overall User statistics (Not date filtered, as it's overall system data)
+    // 5. Overall User statistics
     $stmt = $pdo->query("SELECT user_type, COUNT(*) as count FROM tbluser GROUP BY user_type");
     $user_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // 6. NEW: Patient Age Demographics (Child, Adult, Senior)
+    $stmt = $pdo->query("
+        SELECT 
+            CASE 
+                WHEN TIMESTAMPDIFF(YEAR, bdate, CURDATE()) < 18 THEN 'Child'
+                WHEN TIMESTAMPDIFF(YEAR, bdate, CURDATE()) >= 60 THEN 'Senior'
+                ELSE 'Adult'
+            END AS age_group,
+            COUNT(*) as count
+        FROM tblinfo i
+        JOIN tbluser u ON i.user_id = u.user_id
+        WHERE u.user_type = 'user' AND i.bdate IS NOT NULL AND i.bdate != '0000-00-00'
+        GROUP BY age_group
+    ");
+    $age_raw = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    
+    // Ensure all keys exist (even if 0)
+    $age_stats = [
+        'Child' => $age_raw['Child'] ?? 0,
+        'Adult' => $age_raw['Adult'] ?? 0,
+        'Senior' => $age_raw['Senior'] ?? 0
+    ];
     
 } catch (Exception $e) {
     die("Database Error: " . $e->getMessage());
@@ -91,7 +111,7 @@ try {
   <title>Reports & Analytics - AppointmentEase</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     * { font-family: 'Inter', sans-serif; }
@@ -142,51 +162,41 @@ try {
                     <i data-lucide="list-checks" class="text-blue-500 mb-2" width="24"></i>
                     <h3 class="text-gray-500 text-xs font-semibold uppercase">Total Appts (Filtered)</h3>
                 </div>
-                <p class="text-3xl font-bold text-gray-900 mt-2">
-                    <?= e($status_stats['total_count'] ?? 0) ?>
-                </p>
+                <p class="text-3xl font-bold text-gray-900 mt-2"><?= e($status_stats['total_count'] ?? 0) ?></p>
             </div>
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
                 <div>
                     <i data-lucide="check-circle-2" class="text-green-500 mb-2" width="24"></i>
                     <h3 class="text-gray-500 text-xs font-semibold uppercase">Confirmed</h3>
                 </div>
-                <p class="text-3xl font-bold text-green-600 mt-2">
-                    <?= e($status_stats['confirmed_count'] ?? 0) ?>
-                </p>
+                <p class="text-3xl font-bold text-green-600 mt-2"><?= e($status_stats['confirmed_count'] ?? 0) ?></p>
             </div>
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
                 <div>
-                    <i data-lucide="clock-3" class="text-yellow-500 mb-2" width="24"></i>
-                    <h3 class="text-gray-500 text-xs font-semibold uppercase">Pending</h3>
+                    <i data-lucide="check-square" class="text-blue-500 mb-2" width="24"></i>
+                    <h3 class="text-gray-500 text-xs font-semibold uppercase">Completed</h3>
                 </div>
-                <p class="text-3xl font-bold text-yellow-600 mt-2">
-                    <?= e($status_stats['pending_count'] ?? 0) ?>
-                </p>
+                <p class="text-3xl font-bold text-blue-600 mt-2"><?= e($status_stats['completed_count'] ?? 0) ?></p>
             </div>
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
                 <div>
                     <i data-lucide="stethoscope" class="text-indigo-500 mb-2" width="24"></i>
                     <h3 class="text-gray-500 text-xs font-semibold uppercase">Total Doctors</h3>
                 </div>
-                <p class="text-3xl font-bold text-indigo-600 mt-2">
-                    <?= e($user_stats['doctor'] ?? 0) ?>
-                </p>
+                <p class="text-3xl font-bold text-indigo-600 mt-2"><?= e($user_stats['doctor'] ?? 0) ?></p>
             </div>
              <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
                 <div>
                     <i data-lucide="users" class="text-purple-500 mb-2" width="24"></i>
                     <h3 class="text-gray-500 text-xs font-semibold uppercase">Total Patients</h3>
                 </div>
-                <p class="text-3xl font-bold text-purple-600 mt-2">
-                    <?= e($user_stats['user'] ?? 0) ?>
-                </p>
+                <p class="text-3xl font-bold text-purple-600 mt-2"><?= e($user_stats['user'] ?? 0) ?></p>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative h-96">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Appointment Trend (<?= date('M d, Y', strtotime($start_date)) ?> to <?= date('M d, Y', strtotime($end_date)) ?>)</h2>
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Appointment Trend</h2>
                 <div class="h-[calc(100%-3rem)]">
                     <canvas id="monthlyChart"></canvas>
                 </div>
@@ -200,47 +210,56 @@ try {
             </div>
         </div>
         
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 lg:col-span-1 relative h-96">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative h-96">
                 <h2 class="text-lg font-bold text-gray-800 mb-4">Appointment Status Breakdown</h2>
                 <div class="h-[calc(100%-3rem)] flex items-center justify-center">
                     <canvas id="statusChart" class="max-h-full max-w-full"></canvas>
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
-                <div class="p-6 border-b border-gray-100">
-                    <h2 class="text-lg font-bold text-gray-800">Specialization Performance</h2>
-                    <p class="text-sm text-gray-500">Appointments distributed by the doctor's field (in the filtered period).</p>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative h-96">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Patient Demographics (Age Group)</h2>
+                <div class="h-[calc(100%-3rem)] flex items-center justify-center">
+                    <canvas id="ageChart" class="max-h-full max-w-full"></canvas>
                 </div>
-                <div class="p-6">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Specialization</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Appointments</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
-                            <?php if(empty($specialization_stats)): ?>
-                            <tr>
-                                <td colspan="2" class="px-6 py-4 text-center text-gray-500">No appointments in this period.</td>
-                            </tr>
-                            <?php endif; ?>
-                            <?php foreach ($specialization_stats as $spec): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-3 text-sm font-medium text-gray-900">
-                                    <span class="inline-block w-2 h-2 rounded-full bg-purple-400 mr-2"></span>
-                                    <?= e($spec['specialization'] ?: 'Unspecified') ?>
-                                </td>
-                                <td class="px-6 py-3 text-right text-sm font-semibold text-purple-600">
-                                    <?= e($spec['count']) ?>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+            </div>
+
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 lg:col-span-3">
+            <div class="p-6 border-b border-gray-100">
+                <h2 class="text-lg font-bold text-gray-800">Specialization Performance</h2>
+                <p class="text-sm text-gray-500">Appointments distributed by the doctor's field (in the filtered period).</p>
+            </div>
+            <div class="p-6 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Specialization</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Appointments</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <?php if(empty($specialization_stats)): ?>
+                        <tr>
+                            <td colspan="2" class="px-6 py-4 text-center text-gray-500">No appointments in this period.</td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php foreach ($specialization_stats as $spec): ?>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-3 text-sm font-medium text-gray-900">
+                                <span class="inline-block w-2 h-2 rounded-full bg-purple-400 mr-2"></span>
+                                <?= e($spec['specialization'] ?: 'Unspecified') ?>
+                            </td>
+                            <td class="px-6 py-3 text-right text-sm font-semibold text-purple-600">
+                                <?= e($spec['count']) ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -250,9 +269,6 @@ try {
                 <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-semibold transition">
                     Print / Save as PDF
                 </button>
-                <a href="generate_report.php?type=excel&start=<?= e($start_date) ?>&end=<?= e($end_date) ?>" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition">
-                    Export Filtered Data to Excel (Requires `generate_report.php` logic)
-                </a>
             </div>
         </div>
 
@@ -267,96 +283,99 @@ try {
     const monthlyData = <?= json_encode($monthly_stats) ?>;
     const doctorsData = <?= json_encode($top_doctors) ?>;
     const statusStats = <?= json_encode($status_stats) ?>;
+    const ageStats = <?= json_encode($age_stats) ?>; // NEW DATA
     
-    // Monthly Appointments Chart
-    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-    new Chart(monthlyCtx, {
+    // 1. Monthly Chart (Line)
+    new Chart(document.getElementById('monthlyChart').getContext('2d'), {
         type: 'line',
         data: {
             labels: monthlyData.map(d => d.month),
             datasets: [{
                 label: 'Appointments',
                 data: monthlyData.map(d => d.count),
-                borderColor: 'rgb(99, 102, 241)', // indigo-500
+                borderColor: 'rgb(99, 102, 241)',
                 backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
+                tension: 0.4, fill: true, pointRadius: 4
             }]
         },
-        options: {
-            responsive: true,
-            // Crucial setting: allow chart to use the height of the container
-            maintainAspectRatio: false, 
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            },
-            plugins: {
-                legend: { display: false },
-                title: { display: false }
-            }
-        }
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
     });
 
-    // Top Doctors Chart
-    const doctorsCtx = document.getElementById('doctorsChart').getContext('2d');
-    new Chart(doctorsCtx, {
+    // 2. Top Doctors (Bar)
+    new Chart(document.getElementById('doctorsChart').getContext('2d'), {
         type: 'bar',
         data: {
             labels: doctorsData.map(d => (d.last_name || 'N/A') + ', ' + (d.first_name || 'N/A')),
             datasets: [{
                 label: 'Appointments',
                 data: doctorsData.map(d => d.count),
-                backgroundColor: 'rgba(124, 58, 237, 0.8)', // purple-600
-                borderColor: 'rgb(124, 58, 237)',
-                borderWidth: 1
+                backgroundColor: 'rgba(124, 58, 237, 0.8)',
+                borderColor: 'rgb(124, 58, 237)', borderWidth: 1
             }]
         },
-        options: {
-            responsive: true,
-            indexAxis: 'y', // Makes it a horizontal bar chart
-            // Crucial setting: allow chart to use the height of the container
-            maintainAspectRatio: false, 
-            scales: {
-                x: { beginAtZero: true }
-            },
-            plugins: {
-                legend: { display: false },
-                title: { display: false }
-            }
-        }
+        options: { responsive: true, indexAxis: 'y', maintainAspectRatio: false, scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } }
     });
     
-    // Appointment Status Doughnut Chart
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    new Chart(statusCtx, {
+    // 3. Status (Doughnut)
+    new Chart(document.getElementById('statusChart').getContext('2d'), {
         type: 'doughnut',
         data: {
-            labels: ['Confirmed/Completed', 'Pending', 'Cancelled/Other'],
+            labels: ['Confirmed', 'Pending', 'Completed', 'Cancelled'],
             datasets: [{
                 data: [
                     parseInt(statusStats.confirmed_count),
                     parseInt(statusStats.pending_count),
+                    parseInt(statusStats.completed_count),
                     parseInt(statusStats.cancelled_count)
                 ],
                 backgroundColor: [
-                    '#10B981', // Emerald-500 (Confirmed)
-                    '#F59E0B', // Amber-500 (Pending)
-                    '#EF4444', // Red-500 (Cancelled)
+                    '#10B981', // Green
+                    '#F59E0B', // Orange
+                    '#3B82F6', // Blue
+                    '#EF4444'  // Red
                 ],
                 hoverOffset: 4
             }]
         },
-        options: {
-            responsive: true,
-            // This is maintained, but the fixed container height limits its size.
+        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // 4. Age Demographics (Pie) - NEW
+    new Chart(document.getElementById('ageChart').getContext('2d'), {
+        type: 'pie',
+        data: {
+            labels: ['Child (<18)', 'Adult (18-59)', 'Senior (60+)'],
+            datasets: [{
+                data: [
+                    parseInt(ageStats.Child),
+                    parseInt(ageStats.Adult),
+                    parseInt(ageStats.Senior)
+                ],
+                backgroundColor: [
+                    '#38bdf8', // Sky Blue (Child)
+                    '#818cf8', // Indigo (Adult)
+                    '#f472b6'  // Pink (Senior)
+                ],
+                hoverOffset: 4
+            }]
+        },
+        options: { 
+            responsive: true, 
             maintainAspectRatio: true, 
-            plugins: {
+            plugins: { 
                 legend: { position: 'bottom' },
-                title: { display: false }
-            }
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.parsed;
+                            let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            let percentage = total > 0 ? Math.round((value / total) * 100) + '%' : '0%';
+                            return `${label}: ${value} (${percentage})`;
+                        }
+                    }
+                }
+            } 
         }
     });
   </script>
