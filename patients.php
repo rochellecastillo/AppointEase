@@ -195,7 +195,7 @@ function getAge($dob) {
                                 <a href="doctor_records.php?patient_id=<?= $p['user_id'] ?>" class="flex-1 py-2.5 bg-slate-50 text-slate-700 font-medium text-sm rounded-xl hover:bg-slate-100 text-center transition border border-slate-200">
                                     History
                                 </a>
-                                <a href="doctor_records.php?patient_id=<?= $p['user_id'] ?>&action=new" class="flex-1 py-2.5 bg-green-600 text-white font-medium text-sm rounded-xl hover:bg-green-700 text-center transition shadow-sm shadow-green-200">
+                                <a href="doctor_view.php?patient_id=<?= $p['user_id'] ?>&action=new" class="flex-1 py-2.5 bg-green-600 text-white font-medium text-sm rounded-xl hover:bg-green-700 text-center transition shadow-sm shadow-green-200">
                                     View Profile
                                 </a>
                             </div>

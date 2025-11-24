@@ -7,12 +7,6 @@ require_once 'db.php';
 
 session_require_auth(['doctor']);
 
-if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    log_security_event('logout', ['user_id' => session_get_user_id()]);
-    session_destroy_user();
-    header('Location: login.php');
-    exit;
-}
 
 $my_user_id = session_get_user_id();
 

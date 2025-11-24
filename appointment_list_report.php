@@ -7,13 +7,6 @@ require_once 'db.php';
 // Require admin authentication
 session_require_auth(['admin']);
 
-// Handle Logout
-if (isset($_GET['action']) && $_GET['action'] === 'logout.php') {
-    session_destroy_user();
-    header('Location: login.php?logout=1');
-    exit;
-}
-
 $adminName = session_get_username();
 $success = '';
 $error = '';
