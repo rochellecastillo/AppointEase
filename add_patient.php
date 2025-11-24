@@ -40,6 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Username is already taken.");
         }
 
+        // Check if Contact already exists in tblinfo
+        $stmt = $pdo->prepare("SELECT id FROM tblinfo WHERE contact = ?");
+        $stmt->execute([$contact]);
+        if ($stmt->rowCount() > 0) {
+            throw new Exception("This contact number is already registered.");
+        }
+
         // 3. Generate Unique User ID
         // Format: PAT-Timestamp-Random (e.g., PAT-17154321-99)
         $user_id = 'PAT-' . time() . '-' . rand(10, 99);
@@ -78,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // B. Insert into tbluser (Login Credentials)
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         // status = 1 (Active), user_type = 'user'
-        $sqlUser = "INSERT INTO tbluser (user_id, user_name, user_password, user_type, status) VALUES (?, ?, ?, 'user', 1)";
+        $sqlUser = "INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, 'user', 1)";
         $stmtUser = $pdo->prepare($sqlUser);
         $stmtUser->execute([$user_id, $username, $hashed_password]);
 

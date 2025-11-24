@@ -41,31 +41,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Username is already taken.");
         }
 
+        // Check if Contact already exists in tblinfo
+        $stmt = $pdo->prepare("SELECT id FROM tblinfo WHERE contact = ?");
+        $stmt->execute([$contact]);
+        if ($stmt->rowCount() > 0) {
+            throw new Exception("This contact number is already registered.");
+        }
+
         // 3. Generate Unique User ID
         $user_id = 'DOC-' . time() . '-' . rand(10, 99);
 
         // 4. Handle Image Upload
         $image_filename = null;
+
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+
         if (!empty($_FILES['image']['name'])) {
+
             $target_dir = "uploads/";
             if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-            
+
             $file_ext = strtolower(pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION));
-            $new_filename = "doc_" . time() . "." . $file_ext;
-            $target_file = $target_dir . $new_filename;
-            
             $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-            if (in_array($file_ext, $allowed)) {
-                if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-                    $image_filename = $new_filename;
-                } else {
-                    throw new Exception("Failed to upload image.");
-                }
-            } else {
+
+            if (!in_array($file_ext, $allowed)) {
                 throw new Exception("Invalid file format. Only JPG, PNG & GIF allowed.");
             }
-        }
 
+            $new_filename = "doc_" . time() . "." . $file_ext;
+            $target_file = $target_dir . $new_filename;
+
+            if (!move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
+                throw new Exception("Failed to upload image.");
+            }
+
+            $image_filename = $new_filename;
+        }
+    }
         // 5. Insert Data (Using Transaction for Safety)
         $pdo->beginTransaction();
 
@@ -78,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // B. Insert into tbluser (Login Credentials)
         // Uses $username for user_name column
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $sqlUser = "INSERT INTO tbluser (user_id, user_name, user_password, user_type, status) VALUES (?, ?, ?, 'doctor', 1)";
+        $sqlUser = "INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, 'doctor', 1)";
         $stmtUser = $pdo->prepare($sqlUser);
         $stmtUser->execute([$user_id, $username, $hashed_password]);
 
