@@ -75,10 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // --- 2. FETCH APPOINTMENTS ---
 $filter = $_GET['status'] ?? 'upcoming';
-$today = date('Y-m-d');
+$today = date('Y-m-d'); // <-- This variable is correctly defined and will be used below.
 
 $sql = "SELECT a.id, a.booking_date, a.booking_time, a.status, 
-               i.first_name, i.last_name, i.contact, i.gender, i.bdate, i.address
+                i.first_name, i.last_name, i.contact, i.gender, i.bdate, i.address
         FROM tblappointment a
         JOIN tblinfo i ON a.user_id = i.user_id
         WHERE a.doctor = ?";
@@ -90,7 +90,7 @@ if ($filter === 'pending') {
     $sql .= " AND (a.booking_date < ? OR a.status = 0)"; // Past or Cancelled
     $params = [$user_id, $today];
 } else {
-    // Default: Upcoming Confirmed
+    // Default: Upcoming Confirmed (status = 1 and date >= today)
     $sql .= " AND a.status = 1 AND a.booking_date >= ?";
     $params = [$user_id, $today];
 }
@@ -214,11 +214,11 @@ function getAge($dob) {
                                             Approve
                                         </button>
                                     </form>
-                                <?php elseif($filter === 'upcoming'): ?>
+                                <?php elseif($filter === 'upcoming' && $apt['booking_date'] === $today): ?>
                                     <a href="doctor_consultation.php?id=<?= $apt['id'] ?>" class="w-full md:w-auto px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition shadow-sm text-sm text-center">
                                         Start Consultation
                                     </a>
-                                <?php endif; ?>
+                                    <?php endif; ?>
                                 
                                 <a href="doctor_records.php?patient_id=<?= $apt['id'] /* Note: technically should be user_id lookup */ ?>" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition" title="View Records">
                                     <i data-lucide="file-clock" width="20"></i>
