@@ -3,6 +3,7 @@
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
+require_once 'logging_helper.php';
 
 // Redirect if already logged in
 if (session_is_logged_in()) {
@@ -198,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <i data-lucide="shield-check" class="w-5 h-5"></i>
                         </div>
                         <div>
-                            <p class="font-semibold">Secure Portal</p>
+                            <p class="font-semibold">Secure System</p>
                             <p class="text-sm text-blue-200">Your data is protected</p>
                         </div>
                     </div>

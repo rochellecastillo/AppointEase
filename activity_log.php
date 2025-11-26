@@ -3,6 +3,7 @@
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
+require_once 'logging_helper.php'; // harmless to include; required where logging happens
 
 // Enforce Admin Access
 session_require_auth(['admin']);
@@ -10,18 +11,29 @@ session_require_auth(['admin']);
 // Pagination
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = 20;
+if ($page < 1) $page = 1;
 $offset = ($page - 1) * $limit;
 
 // --- ATTEMPT TO FETCH LOGS ---
 try {
     // 1. Get Total Count
     $stmt = $pdo->query("SELECT COUNT(*) FROM tblactivity_log");
-    $total_rows = $stmt->fetchColumn();
-    $total_pages = ceil($total_rows / $limit);
+    $total_rows = (int) $stmt->fetchColumn();
+    $total_pages = (int) ceil($total_rows / $limit);
+    if ($total_pages < 1) $total_pages = 1;
+
+    // If requested page is beyond total pages, clamp it and recalc offset
+    if ($page > $total_pages) {
+        $page = $total_pages;
+        $offset = ($page - 1) * $limit;
+    }
 
     // 2. Try fetching logs with JOIN (Preferred)
     try {
-        $sql = "SELECT l.*, u.user_type 
+        // Prefer the user_type stored in the log; if empty, fall back to tbluser.user_type
+        $sql = "SELECT 
+                    l.*, 
+                    COALESCE(NULLIF(l.user_type, ''), u.user_type) AS user_type
                 FROM tblactivity_log l
                 LEFT JOIN tbluser u ON l.user_id = u.user_id
                 ORDER BY l.created_at DESC 
@@ -35,7 +47,7 @@ try {
     } catch (PDOException $e) {
         // 3. Fallback: If JOIN fails due to collation, fetch without JOIN
         // This prevents the page from crashing with "Illegal mix of collations"
-        $sql = "SELECT l.*, 'Unknown' as user_type 
+        $sql = "SELECT l.*, '' as user_type 
                 FROM tblactivity_log l
                 ORDER BY l.created_at DESC 
                 LIMIT :limit OFFSET :offset";
@@ -79,7 +91,7 @@ try {
                         <p class="text-gray-500">Audit trail of user actions and system events.</p>
                     </div>
                     <div class="text-sm text-gray-400">
-                        Total Records: <?= $total_rows ?>
+                        Total Records: <?= htmlspecialchars($total_rows) ?>
                     </div>
                 </div>
 
@@ -99,33 +111,40 @@ try {
                                 <?php if(empty($logs)): ?>
                                     <tr><td colspan="5" class="p-8 text-center text-gray-500">No activity logs found.</td></tr>
                                 <?php else: ?>
-                                    <?php foreach($logs as $log): 
-                                        // Determine badge color based on role (if available) or stored user_type
-                                        $role = $log['user_type'] ?? 'Unknown';
+                                    <?php foreach($logs as $log):
+                                        // Prefer log's user_type (already handled by SQL), but ensure non-empty display string
+                                        $role = $log['user_type'] ?? '';
+                                        $role = $role === '' ? 'Unknown' : $role;
+
                                         $roleClass = match(strtolower($role)) {
                                             'admin' => 'bg-purple-100 text-purple-700',
                                             'doctor' => 'bg-green-100 text-green-700',
                                             'user' => 'bg-blue-100 text-blue-700',
                                             default => 'bg-gray-100 text-gray-600'
                                         };
+
+                                        // safe timestamp display
+                                        $ts = isset($log['created_at']) && $log['created_at'] !== null
+                                              ? date('Y-m-d H:i:s', strtotime($log['created_at']))
+                                              : 'N/A';
                                     ?>
                                     <tr class="hover:bg-gray-50 transition">
                                         <td class="px-6 py-4 text-gray-500 font-mono text-xs">
-                                            <?= date('Y-m-d H:i:s', strtotime($log['created_at'])) ?>
+                                            <?= htmlspecialchars($ts) ?>
                                         </td>
                                         <td class="px-6 py-4 font-medium text-gray-900">
                                             <?= htmlspecialchars($log['user_id'] ?? 'System') ?>
                                         </td>
                                         <td class="px-6 py-4">
                                             <span class="px-2 py-1 rounded text-xs font-bold uppercase <?= $roleClass ?>">
-                                                <?= htmlspecialchars($role) ?>
+                                                <?= htmlspecialchars(strtoupper($role)) ?>
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 font-semibold text-gray-700">
-                                            <?= htmlspecialchars($log['action_type']) ?>
+                                            <?= htmlspecialchars($log['action_type'] ?? '') ?>
                                         </td>
-                                        <td class="px-6 py-4 text-gray-600 max-w-xs truncate" title="<?= htmlspecialchars($log['details']) ?>">
-                                            <?= htmlspecialchars($log['details']) ?>
+                                        <td class="px-6 py-4 text-gray-600 max-w-xs truncate" title="<?= htmlspecialchars($log['details'] ?? '') ?>">
+                                            <?= htmlspecialchars($log['details'] ?? '') ?>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
@@ -155,7 +174,9 @@ try {
     </div>
 
     <script>
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+            lucide.createIcons();
+        }
     </script>
 </body>
 </html>
