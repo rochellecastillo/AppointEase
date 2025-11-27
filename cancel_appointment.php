@@ -4,6 +4,7 @@ ob_start();
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
+require_once 'logging_helper.php';
 
 session_require_auth(['user']);
 $user_id = session_get_user_id();

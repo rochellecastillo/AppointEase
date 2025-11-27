@@ -3,6 +3,7 @@
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
+require_once 'logging_helper.php';
 
 session_require_auth(['admin']);
 

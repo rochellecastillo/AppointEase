@@ -1,51 +1,71 @@
 <?php
+// logging_helper.php - Robust activity logging helper
+
+// Ensure session is started if the app hasn't already
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    @session_start();
+}
+
 /**
- * Function to log system activities to the database.
- * * @param string $action_type A constant describing the action (e.g., 'APPOINTMENT_CREATED').
- * @param string $details A brief description or JSON string of the action outcome.
- * @param string $user_id The user ID of the person who performed the action.
- * @param string $user_type The role of the user (e.g., 'admin', 'doctor', 'user').
- * @return bool True on success, false on failure.
+ * Log a generic activity to tblactivity_log.
+ *
+ * @param string $action_type
+ * @param string|array|object $details
+ * @param string|null $user_id
+ * @param string|null $user_type
+ * @return bool
  */
-function log_activity($action_type, $details, $user_id = null, $user_type = null) {
-    // Requires a global $pdo connection
+function log_activity($action_type, $details = '', $user_id = null, $user_type = null) {
     global $pdo;
 
-    // Default to 'SYSTEM' if user ID is not passed (e.g., cron jobs, initial setup)
-    if (empty($user_id)) {
-        $user_id = 'SYSTEM';
-        $user_type = 'SYSTEM';
+    // Defensive: ensure $pdo exists
+    if (!isset($pdo) || !$pdo instanceof PDO) {
+        error_log("log_activity: missing or invalid \$pdo. Action: {$action_type}");
+        return false;
     }
 
-    // Attempt to get user ID and type from session if not passed
-    if (empty($user_id) && isset($_SESSION['user_id'])) {
+    // Normalize details into a string (JSON for arrays/objects)
+    if (is_array($details) || is_object($details)) {
+        $details = json_encode($details, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } elseif ($details === null) {
+        $details = '';
+    } else {
+        // cast to string to avoid errors
+        $details = (string)$details;
+    }
+
+    // Determine user context
+    if (empty($user_id) && !empty($_SESSION['user_id'])) {
         $user_id = $_SESSION['user_id'];
     }
-    if (empty($user_type) && isset($_SESSION['user_type'])) {
+    if (empty($user_type) && !empty($_SESSION['user_type'])) {
         $user_type = $_SESSION['user_type'];
     }
+    if (empty($user_id)) {
+        $user_id = 'SYSTEM';
+        $user_type = $user_type ?: 'SYSTEM';
+    }
 
-    // Get the IP address of the user
     $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'N/A';
 
-    $sql = "INSERT INTO tblactivity_log 
-            (user_id, user_type, action_type, details, ip_address) 
+    $sql = "INSERT INTO tblactivity_log (user_id, user_type, action_type, details, ip_address)
             VALUES (?, ?, ?, ?, ?)";
-            
     try {
         $stmt = $pdo->prepare($sql);
-        return $stmt->execute([
-            $user_id, 
-            $user_type, 
-            $action_type, 
-            $details, 
-            $ip_address
-        ]);
+        return (bool)$stmt->execute([$user_id, $user_type, $action_type, $details, $ip_address]);
     } catch (PDOException $e) {
-        // Log the error internally but prevent page crash
-        error_log("Activity Log Error: " . $e->getMessage() . 
-                  " Action: " . $action_type . " Details: " . $details);
+        // Helpful debug info - still don't crash app
+        error_log("Activity Log Error: {$e->getMessage()} | Action: {$action_type} | User: {$user_id} | IP: {$ip_address}");
+        error_log("Activity Log Details: " . substr($details, 0, 1000)); // avoid super-long messages
         return false;
+    }
+}
+
+// Convenience wrapper used across the app for security-related logs.
+if (!function_exists('log_security_event')) {
+    function log_security_event(string $action_type, $details = '', $user_id = null, $user_type = null) {
+        // let log_activity normalize details for us
+        return log_activity($action_type, $details, $user_id, $user_type);
     }
 }
 ?>
