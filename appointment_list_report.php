@@ -3,6 +3,7 @@
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
+require_once 'logging_helper.php';
 require_once 'iprog_sms.php'; // <--- 1. NEW: Include SMS helper
 
 // Require admin authentication
@@ -293,7 +294,7 @@ try {
                             <td class="p-5 text-center">
                                 <div class="flex items-center justify-center gap-2 opacity-100">
                                     
-                                    <?php if($status == 2 || $status == 0): ?>
+                                    <?php if($status == 2): ?>
                                     <form method="POST" class="inline">
                                         <input type="hidden" name="apt_id" value="<?= $apt['id'] ?>">
                                         <input type="hidden" name="status" value="1">

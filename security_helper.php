@@ -192,26 +192,26 @@ function check_rate_limit($identifier, $max_attempts = 5, $time_window = 900) {
 /**
  * Log security event
  */
-function log_security_event($event_type, $details = []) {
-    $log_entry = [
-        'timestamp' => date('Y-m-d H:i:s'),
-        'event_type' => $event_type,
-        'user_id' => $_SESSION['user_id'] ?? 'guest',
-        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-        'details' => $details
-    ];
+// function log_security_event($event_type, $details = []) {
+//     $log_entry = [
+//         'timestamp' => date('Y-m-d H:i:s'),
+//         'event_type' => $event_type,
+//         'user_id' => $_SESSION['user_id'] ?? 'guest',
+//         'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+//         'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+//         'details' => $details
+//     ];
     
-    // Log to file
-    $log_file = __DIR__ . '/logs/security_' . date('Y-m-d') . '.log';
-    $log_dir = dirname($log_file);
+//     // Log to file
+//     $log_file = __DIR__ . '/logs/security_' . date('Y-m-d') . '.log';
+//     $log_dir = dirname($log_file);
     
-    if (!is_dir($log_dir)) {
-        mkdir($log_dir, 0755, true);
-    }
+//     if (!is_dir($log_dir)) {
+//         mkdir($log_dir, 0755, true);
+//     }
     
-    error_log(json_encode($log_entry) . PHP_EOL, 3, $log_file);
-}
+//     error_log(json_encode($log_entry) . PHP_EOL, 3, $log_file);
+// }
 
 /**
  * Escape HTML output (alias for sanitize_output)

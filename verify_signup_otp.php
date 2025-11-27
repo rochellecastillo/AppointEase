@@ -3,7 +3,7 @@
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
-// require_once 'iprog_sms.php'; // Uncomment when SMS service is active
+require_once 'iprog_sms.php'; // Uncomment when SMS service is active
 
 // Mock SMS verification function if iprog_sms.php is not available/commented out
 if (!function_exists('iprog_verify_otp')) {
