@@ -1,9 +1,10 @@
 <?php
-// add_doctor.php - Register New Medical Staff
+// add_doctor.php - Step 1: Data Collection & OTP Generation
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
 require_once 'logging_helper.php';
+require_once 'iprog_sms.php'; // Include SMS helper
 
 // Enforce Admin Access
 session_require_auth(['admin']);
@@ -19,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $lname = trim($_POST['last_name']);
         
         // Login Credentials
-        $username = trim($_POST['username']); // Added Username
+        $username = trim($_POST['username']);
         $email = trim($_POST['email']);
         $password = $_POST['password'];
         
@@ -35,75 +36,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Please fill in all required fields.");
         }
 
-        // Check if Username already exists in tbluser
+        // Check if Username already exists
         $stmt = $pdo->prepare("SELECT user_id FROM tbluser WHERE user_name = ?");
         $stmt->execute([$username]);
         if ($stmt->rowCount() > 0) {
             throw new Exception("Username is already taken.");
         }
 
-        // Check if Contact already exists in tblinfo
-        $stmt = $pdo->prepare("SELECT id FROM tblinfo WHERE contact = ?");
-        $stmt->execute([$contact]);
-        if ($stmt->rowCount() > 0) {
-            throw new Exception("This contact number is already registered.");
-        }
+        // Check if Contact already exists
+        // $stmt = $pdo->prepare("SELECT id FROM tblinfo WHERE contact = ?");
+        // $stmt->execute([$contact]);
+        // if ($stmt->rowCount() > 0) {
+        //     throw new Exception("This contact number is already registered.");
+        // }
 
-        // 3. Generate Unique User ID
-        $user_id = 'DOC-' . time() . '-' . rand(10, 99);
-
-        // 4. Handle Image Upload
+        // 3. Handle Image Upload FIRST
+        // We upload the image now so the filename is ready for the session
         $image_filename = null;
-
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            if (!empty($_FILES['image']['name'])) {
+                $target_dir = "uploads/";
+                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
 
-        if (!empty($_FILES['image']['name'])) {
+                $file_ext = strtolower(pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION));
+                $allowed = ['jpg', 'jpeg', 'png', 'gif'];
 
-            $target_dir = "uploads/";
-            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                if (!in_array($file_ext, $allowed)) {
+                    throw new Exception("Invalid file format. Only JPG, PNG & GIF allowed.");
+                }
 
-            $file_ext = strtolower(pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION));
-            $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+                $new_filename = "doc_" . time() . "." . $file_ext;
+                $target_file = $target_dir . $new_filename;
 
-            if (!in_array($file_ext, $allowed)) {
-                throw new Exception("Invalid file format. Only JPG, PNG & GIF allowed.");
+                if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
+                    $image_filename = $new_filename;
+                } else {
+                    throw new Exception("Failed to upload image.");
+                }
             }
-
-            $new_filename = "doc_" . time() . "." . $file_ext;
-            $target_file = $target_dir . $new_filename;
-
-            if (!move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-                throw new Exception("Failed to upload image.");
-            }
-
-            $image_filename = $new_filename;
         }
-    }
-        // 5. Insert Data (Using Transaction for Safety)
-        $pdo->beginTransaction();
 
-        // A. Insert into tblinfo (Personal Details)
-        $sqlInfo = "INSERT INTO tblinfo (user_id, first_name, middle_name, last_name, specialization, contact, address, gender, bdate, email, image) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmtInfo = $pdo->prepare($sqlInfo);
-        $stmtInfo->execute([$user_id, $fname, $mname, $lname, $spec, $contact, $address, $gender, $bdate, $email, $image_filename]);
+        // 4. Store Data in Session (Temporary Storage)
+        $_SESSION['temp_doctor_data'] = [
+            'first_name' => $fname,
+            'middle_name' => $mname,
+            'last_name' => $lname,
+            'username' => $username,
+            'email' => $email,
+            'password' => $password, // Will hash in step 2
+            'contact' => $contact,
+            'specialization' => $spec,
+            'gender' => $gender,
+            'bdate' => $bdate,
+            'address' => $address,
+            'image' => $image_filename
+        ];
 
-        // B. Insert into tbluser (Login Credentials)
-        // Uses $username for user_name column
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $sqlUser = "INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, 'doctor', 1)";
-        $stmtUser = $pdo->prepare($sqlUser);
-        $stmtUser->execute([$user_id, $username, $hashed_password]);
+        // 5. Send OTP
+        $otp_response = iprog_send_otp($contact);
 
-        $pdo->commit();
-
-        $msg = "Doctor registered successfully! ID: " . $user_id;
-        $msg_type = "success";
-        
-        $_POST = []; // Clear form
+        if ($otp_response['success']) {
+            // Redirect to OTP Verification Page
+            header("Location: verify_admin_otp.php");
+            exit();
+        } else {
+            // Log the error and show message
+            error_log("OTP Send Failed: " . print_r($otp_response, true));
+            throw new Exception("Failed to send OTP to $contact. Please check the number.");
+        }
 
     } catch (Exception $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
         $msg = "Error: " . $e->getMessage();
         $msg_type = "error";
     }
@@ -133,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to List
                     </a>
                     <h1 class="text-3xl font-bold text-gray-900">Register New Doctor</h1>
-                    <p class="text-gray-500">Create a new account for medical staff.</p>
+                    <p class="text-gray-500">Step 1: Enter Details & Verify Phone</p>
                 </div>
 
                 <?php if ($msg): ?>
@@ -157,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <input type="file" name="image" id="upload_image" class="hidden" accept="image/*" onchange="previewImage(this)">
                                 </label>
                             </div>
-                            <p class="text-sm text-gray-500">Upload Profile Picture</p>
+                            <p class="text-sm text-gray-500">Profile Picture (Optional)</p>
                         </div>
 
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
@@ -225,6 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">Contact Number</label>
                                     <input type="text" name="contact" required value="<?= htmlspecialchars($_POST['contact'] ?? '') ?>" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-purple-500 outline-none transition">
+                                    <p class="text-xs text-blue-600 mt-1">An OTP will be sent to this number.</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
@@ -240,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="flex justify-end gap-4 pt-4 border-t border-gray-100">
                                 <button type="reset" class="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition">Reset</button>
                                 <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition transform active:scale-95">
-                                    Register Doctor
+                                    Send OTP & Register
                                 </button>
                             </div>
                         </div>

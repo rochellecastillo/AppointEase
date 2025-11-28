@@ -1,85 +1,281 @@
 <?php
-// verify_otp.php (iProg verify)
-session_start();
-require 'db.php';
-require 'otp_store.php';
-require 'iprog_sms.php';
+// verify_otp.php - Universal OTP Verification (Signup & Password Reset Only)
+require_once 'session_handler.php';
+require_once 'security_helper.php';
+require_once 'db.php';
+require_once 'iprog_sms.php'; 
 
-if(!isset($_SESSION['pending_user'])){ header('Location: login.php'); exit; }
+// 1. Security: Ensure a process was started
+if (!isset($_SESSION['otp_action']) || !isset($_SESSION['otp_payload'])) {
+    header('Location: login.php');
+    exit;
+}
 
-$pending = $_SESSION['pending_user'];
-$phone = $pending['phone'] ?? null;
-$user_id = $pending['user_id'] ?? null;
-$otp_rec = $user_id ? get_otp_for_user($user_id) : null;
-$expires_iso = $otp_rec ? date('c', $otp_rec['expires']) : date('c', time() + 300);
-$error = '';
+$action = $_SESSION['otp_action'];
+$payload = $_SESSION['otp_payload'];
+$phone = $payload['contact'] ?? '';
 
-if($_SERVER['REQUEST_METHOD'] === 'POST'){
-  $input = trim($_POST['otp'] ?? '');
-  if($input === '') $error = "Enter the OTP.";
-  else {
-    $res = iprog_verify_otp($phone, $input);
-    if(!$res['success']){
-      $error = "Invalid or expired OTP. Please try again.";
-      error_log("[AppointmentEase] iprog_verify_otp failed: " . print_r($res, true));
-    } else {
-      // verified: create session
-      $stmt = $pdo->prepare("SELECT * FROM tbluser WHERE user_id = ? LIMIT 1");
-      $stmt->execute([$user_id]);
-      $user = $stmt->fetch();
+// UI Configuration
+$page_title = "Verify Your Account";
+$success_msg = "Verification successful!";
+$redirect_url = "login.php";
+$redirect_btn_text = "Go to Login";
 
-      $_SESSION['user_db_id'] = $user['id'];
-      $_SESSION['user_id'] = $user['user_id'];
-      $_SESSION['user_name'] = $user['user_name'];
-      $_SESSION['user_type'] = $user['user_type'] ?? 'client';
+// Configure Page Logic based on Action
+switch ($action) {
+    case 'add_doctor':
+        $page_title = "Verify Doctor Registration";
+        $success_msg = "Doctor account created successfully!";
+        $redirect_url = "doctors_info_report.php";
+        $redirect_btn_text = "Return to Doctor List";
+        break;
+    case 'add_patient_admin':
+        $page_title = "Verify Patient Registration";
+        $success_msg = "Patient account created successfully!";
+        $redirect_url = "users_list.php.php"; // Or users_list.php
+        $redirect_btn_text = "Return to Patient List";
+        break;
+    case 'forgot_password':
+        $page_title = "Verify for Password Reset";
+        $success_msg = "Identity verified. Redirecting to password reset...";
+        $redirect_url = "reset_new_password.php"; 
+        $redirect_btn_text = "Set New Password";
+        break;
+    case 'signup':
+    default:
+        $page_title = "Verify Your Account";
+        $success_msg = "Account created successfully!";
+        $redirect_url = "login.php";
+        $redirect_btn_text = "Sign In Now";
+        break;
+}
 
-      unset($_SESSION['pending_user']);
-      if($user_id) delete_otp_for_user($user_id);
-
-      header('Location: dashboard.php');
-      exit;
+// User ID Generator Helper
+function generate_user_id($pdo) {
+    $base = 'U' . date('ymd');
+    $i = 1;
+    while (true) {
+        $uid = $base . '-' . str_pad($i, 3, '0', STR_PAD_LEFT);
+        $stmt = $pdo->prepare("SELECT 1 FROM tblinfo WHERE user_id = ? LIMIT 1");
+        $stmt->execute([$uid]);
+        if (!$stmt->fetch()) return $uid;
+        $i++;
+        if ($i > 9999) throw new Exception("Failed to generate ID");
     }
-  }
+}
+
+$error = '';
+$success = false;
+$expires_ts = $payload['otp_expires'] ?? (time() + 300);
+$expires_iso = date('c', $expires_ts);
+
+// 2. Handle Logic
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $otp = trim($_POST['otp'] ?? '');
+
+    if (empty($otp)) {
+        $error = "Please enter the OTP code";
+    } elseif (time() > $expires_ts) {
+        $error = "OTP has expired. Please request a new one";
+    } else {
+        
+        // A. Verify OTP
+        $verification = iprog_verify_otp($phone, $otp);
+
+        if ($verification['success']) {
+            
+            // B. Perform Action
+            try {
+                $pdo->beginTransaction();
+
+                if ($action === 'forgot_password') {
+                    // --- CASE 1: FORGOT PASSWORD ---
+                    $_SESSION['allow_password_reset'] = true;
+                    $_SESSION['reset_user_id'] = $payload['user_id'];
+                    
+                    unset($_SESSION['otp_action']);
+                    unset($_SESSION['otp_payload']);
+                    
+                    header('Location: reset_new_password.php');
+                    exit;
+
+                } elseif ($action === 'signup') {
+                    // --- CASE 2: PATIENT SIGNUP ---
+                    $user_id = generate_user_id($pdo);
+                    
+                    // Insert Info
+                    $stmt = $pdo->prepare("INSERT INTO tblinfo (user_id, last_name, first_name, middle_name, bdate, gender, address, contact, specialization, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$user_id, $payload['last_name'], $payload['first_name'], $payload['middle_name'], $payload['bdate'], $payload['gender'], $payload['address'], $payload['contact'], '', '']);
+                    
+                    // Insert User
+                    $stmt = $pdo->prepare("INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, 'user', 1)");
+                    $stmt->execute([$user_id, $payload['user_name'], $payload['password']]);
+                }
+
+                $pdo->commit();
+                
+                // Cleanup
+                unset($_SESSION['otp_action']);
+                unset($_SESSION['otp_payload']);
+                
+                $success = true;
+
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                $error = "System Error: " . $e->getMessage();
+            }
+
+        } else {
+            $error = "Invalid OTP Code. Please try again.";
+        }
+    }
 }
 ?>
-<!doctype html>
-<html>
-<head><title>Verify OTP</title></head>
-<body>
-  <h2>Enter OTP</h2>
-  <?php if($error) echo "<p style='color:red;'>$error</p>"; ?>
-  <p>OTP is valid for <span id="timer">05:00</span></p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= htmlspecialchars($page_title) ?></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .bg-pattern { background-color: #ffffff; background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+        .otp-input { letter-spacing: 0.5em; text-align: center; font-size: 1.5rem; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 bg-pattern">
 
-  <form method="post" action="">
-    <input name="otp" placeholder="6-digit code" required pattern="\d{4,6}">
-    <button type="submit">Verify</button>
-  </form>
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
+        
+        <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-center text-white relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-32 h-32 bg-white opacity-10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-2xl"></div>
+            <div class="absolute bottom-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full translate-x-1/2 translate-y-1/2 blur-2xl"></div>
 
-  <form method="post" action="resend_otp.php">
-    <button type="submit" id="resendBtn">Resend OTP</button>
-  </form>
+            <div class="relative z-10">
+                <div class="inline-flex p-3 bg-white/20 rounded-xl mb-4 backdrop-blur-sm">
+                    <?php if ($success): ?>
+                        <i data-lucide="check-circle" class="w-8 h-8 text-white"></i>
+                    <?php else: ?>
+                        <i data-lucide="shield-check" class="w-8 h-8 text-white"></i>
+                    <?php endif; ?>
+                </div>
+                <h1 class="text-2xl font-bold">
+                    <?= $success ? 'Success!' : htmlspecialchars($page_title) ?>
+                </h1>
+                <?php if (!$success): ?>
+                    <p class="text-blue-100 text-sm mt-2">We sent a code to <span class="font-bold"><?= htmlspecialchars($phone) ?></span></p>
+                <?php endif; ?>
+            </div>
+        </div>
 
-  <script>
-    let expiresAt = new Date("<?= $expires_iso ?>").getTime();
-    const timerEl = document.getElementById('timer');
-    const resendBtn = document.getElementById('resendBtn');
+        <div class="p-8">
+            <?php if ($success): ?>
+                <div class="text-center space-y-6">
+                    <div class="p-4 bg-green-50 rounded-xl border border-green-100">
+                        <p class="text-green-800 font-medium"><?= htmlspecialchars($success_msg) ?></p>
+                    </div>
+                    
+                    <a href="<?= $redirect_url ?>" 
+                       class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform active:scale-[0.98]">
+                        <i data-lucide="arrow-right" class="w-4 h-4 mr-2"></i>
+                        <?= htmlspecialchars($redirect_btn_text) ?>
+                    </a>
+                </div>
 
-    function updateTimer(){
-      let now = Date.now();
-      let diff = expiresAt - now;
-      if(diff <= 0){
-        timerEl.textContent = "Expired";
-        resendBtn.disabled = false;
-        clearInterval(iv);
-        return;
-      }
-      resendBtn.disabled = true;
-      let m = Math.floor(diff/60000);
-      let s = Math.floor((diff%60000)/1000);
-      timerEl.textContent = String(m).padStart(2,'0') + ":" + String(s).padStart(2,'0');
-    }
-    updateTimer();
-    let iv = setInterval(updateTimer, 500);
-  </script>
+            <?php else: ?>
+                <?php if ($error): ?>
+                    <div class="flex items-center p-4 mb-6 text-sm text-red-700 bg-red-50 rounded-xl border border-red-100" role="alert">
+                        <i data-lucide="alert-circle" class="w-5 h-5 mr-3 flex-shrink-0"></i>
+                        <span><?= htmlspecialchars($error) ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST" action="" class="space-y-6">
+                    <div>
+                        <label for="otp" class="sr-only">OTP Code</label>
+                        <input type="text" name="otp" id="otp" required autofocus
+                               pattern="\d*" maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+                               class="otp-input w-full px-4 py-4 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-300 focus:outline-none focus:border-blue-500 focus:ring-0 transition-colors"
+                               placeholder="------">
+                    </div>
+
+                    <div class="flex items-center justify-center space-x-2 text-sm">
+                        <i data-lucide="clock" class="w-4 h-4 text-gray-400"></i>
+                        <span class="text-gray-500">Code expires in:</span>
+                        <span id="timer" class="font-mono font-bold text-blue-600">05:00</span>
+                    </div>
+
+                    <button type="submit" 
+                            class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform active:scale-[0.98]">
+                        Verify Code
+                        <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
+                    </button>
+                </form>
+
+                <div class="mt-8 pt-6 border-t border-gray-100 text-center">
+                    <p class="text-sm text-gray-600 mb-4">Didn't receive the code?</p>
+                    <form method="POST" action="resend_otp.php" class="inline-block">
+                        <button type="submit" id="resendBtn" class="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 mr-1.5"></i>
+                            Resend Code
+                        </button>
+                    </form>
+                    
+                    <div class="mt-4">
+                        <a href="javascript:history.back()" class="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                            ← Go Back
+                        </a>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <script>
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        
+        <?php if (!$success): ?>
+        // Countdown timer logic
+        const expiresAt = new Date("<?= $expires_iso ?>").getTime();
+        const timerEl = document.getElementById('timer');
+        const resendBtn = document.getElementById('resendBtn');
+        
+        function updateTimer() {
+            const now = Date.now();
+            const diff = expiresAt - now;
+            
+            if (diff <= 0) {
+                timerEl.textContent = "00:00";
+                timerEl.classList.add('text-red-500');
+                timerEl.classList.remove('text-blue-600');
+                clearInterval(timerInterval);
+                return;
+            }
+            
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            
+            timerEl.textContent = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+            
+            if (diff < 60000) { 
+                timerEl.classList.add('text-orange-500');
+                timerEl.classList.remove('text-blue-600');
+            }
+        }
+        
+        updateTimer();
+        const timerInterval = setInterval(updateTimer, 1000);
+        
+        const otpInput = document.getElementById('otp');
+        if (otpInput) {
+            otpInput.addEventListener('input', function(e) {
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+        }
+        <?php endif; ?>
+    </script>
 </body>
 </html>
