@@ -1,38 +1,22 @@
 <?php
-// signup.php - Improved signup with OTP and security
+// signup.php - Patient Registration linked to 'appointment.sql' schema
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
-// require_once 'iprog_sms.php'; // Commented out for now, uncomment when SMS service is active
+require_once 'iprog_sms.php'; // SMS Helper
 
 // Redirect if already logged in
 if (session_is_logged_in()) {
-    header('Location: client_home.php');
+    header('Location: ' . (session_get_user_type() === 'admin' ? 'admin_home.php' : 
+           (session_get_user_type() === 'doctor' ? 'doctor_home.php' : 'client_home.php')));
     exit;
-}
-
-/**
- * Generate a unique user_id like UYYMMDD-001
- */
-function generate_user_id($pdo) {
-    $base = 'U' . date('ymd');
-    $i = 1;
-    while (true) {
-        $uid = $base . '-' . str_pad($i, 3, '0', STR_PAD_LEFT);
-        $stmt = $pdo->prepare("SELECT 1 FROM tblinfo WHERE user_id = ? LIMIT 1");
-        $stmt->execute([$uid]);
-        if (!$stmt->fetch()) return $uid;
-        $i++;
-        if ($i > 9999) throw new Exception("Failed to generate user_id");
-    }
 }
 
 $errors = [];
 $prefill = $_POST ?? [];
-$step = 1; // Multi-step form
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'start_signup') {
-    // Collect and trim
+    // 1. Collect & Sanitize Inputs
     $last_name = trim($_POST['last_name'] ?? '');
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');
@@ -45,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $confirm_password = trim($_POST['confirm_password'] ?? '');
     $terms_accepted = isset($_POST['terms_accepted']);
 
-    // Validate required fields
+    // 2. Validate Required Fields
     if (empty($last_name)) $errors[] = "Last name is required";
     if (empty($first_name)) $errors[] = "First name is required";
     if (empty($bdate)) $errors[] = "Birth date is required";
@@ -57,83 +41,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if ($password !== $confirm_password) $errors[] = "Passwords do not match";
     if (!$terms_accepted) $errors[] = "You must accept the terms and conditions";
 
-    // Validate phone number
-    $contact_norm = normalize_phone_ph($contact);
-    if (!validate_phone_ph($contact_norm)) {
-        $errors[] = "Invalid Philippine mobile number format (e.g., 09171234567)";
+    // 3. Database Schema Validation (Based on appointment.sql)
+    // tblinfo constraints: last_name(40), first_name(50), middle_name(40), address(200)
+    if (strlen($last_name) > 40) $errors[] = "Last name is too long (Max 40 characters)";
+    if (strlen($first_name) > 50) $errors[] = "First name is too long (Max 50 characters)";
+    if (strlen($middle_name) > 40) $errors[] = "Middle name is too long (Max 40 characters)";
+    if (strlen($address) > 200) $errors[] = "Address is too long (Max 200 characters)";
+    
+    // tbluser constraints: user_name(30)
+    if (strlen($user_name) > 30) $errors[] = "Username is too long (Max 30 characters)";
+
+    // 4. Validate Logic (Phone, Password, Age)
+    $contact_norm = normalize_phone_ph($contact); 
+    // Assuming normalize_phone_ph returns format 09xxxxxxxxx. If not, implement standard normalization.
+    if (!preg_match('/^(09|\+639)\d{9}$/', $contact_norm)) {
+         $errors[] = "Invalid Philippine mobile number format (e.g., 09171234567)";
     }
 
-    // Validate password strength
     if (empty($errors)) {
-        $password_validation = validate_password_strength($password);
-        if (!$password_validation['valid']) {
-            $errors = array_merge($errors, $password_validation['errors']);
+        // Simple password strength check
+        if (strlen($password) < 8 || !preg_match("/[A-Z]/", $password) || !preg_match("/[0-9]/", $password)) {
+            $errors[] = "Password must be at least 8 chars and contain 1 uppercase letter and 1 number.";
         }
     }
 
-    // Validate age (must be 13+)
     if (!empty($bdate)) {
         $birth_date = new DateTime($bdate);
         $now = new DateTime();
         $age = $now->diff($birth_date)->y;
-        if ($age < 13) {
-            $errors[] = "You must be at least 13 years old to register";
-        }
+        if ($age < 13) $errors[] = "You must be at least 13 years old to register";
     }
 
-    // Check username uniqueness
+    // 5. Check Availability (Username & Contact)
     if (empty($errors)) {
+        // Check tbluser for username
         $stmt = $pdo->prepare("SELECT 1 FROM tbluser WHERE user_name = ? LIMIT 1");
         $stmt->execute([$user_name]);
-        if ($stmt->fetch()) {
-            $errors[] = "Username already taken. Please choose another username";
-        }
+        if ($stmt->fetch()) $errors[] = "Username already taken.";
+
+        // // Check tblinfo for contact
+        // $stmt = $pdo->prepare("SELECT 1 FROM tblinfo WHERE contact = ? LIMIT 1");
+        // $stmt->execute([$contact_norm]);
+        // if ($stmt->fetch()) $errors[] = "This contact number is already registered.";
     }
 
-    // Check contact uniqueness
+    // 6. Process Signup -> Send to Universal OTP
     if (empty($errors)) {
-        $stmt = $pdo->prepare("SELECT 1 FROM tblinfo WHERE contact = ? LIMIT 1");
-        $stmt->execute([$contact_norm]);
-        if ($stmt->fetch()) {
-            $errors[] = "This contact number is already registered";
-        }
-    }
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-    if (empty($errors)) {
-        // Hash password before storing
-        $hashed_password = hash_password($password);
-        
-        // Store pending signup in session
-        $_SESSION['pending_signup'] = [
-            'last_name' => $last_name,
-            'first_name' => $first_name,
+        // Prepare Universal Session Payload
+        $_SESSION['otp_action'] = 'signup';
+        $_SESSION['otp_payload'] = [
+            // Info Table
+            'last_name'   => $last_name,
+            'first_name'  => $first_name,
             'middle_name' => $middle_name,
-            'bdate' => $bdate,
-            'gender' => $gender,
-            'address' => $address,
-            'contact' => $contact_norm,
-            'user_name' => $user_name,
-            'password' => $hashed_password,
+            'bdate'       => $bdate,
+            'gender'      => $gender,
+            'address'     => $address,
+            'contact'     => $contact_norm,
+            'specialization' => '', // REQUIRED by DB (NOT NULL), implies 'Patient'
+            'image'       => '',    // Matches your DB default for new users
+            
+            // User Table
+            'user_name'   => $user_name,
+            'password'    => $hashed_password,
             'otp_expires' => time() + (5 * 60)
         ];
 
-        // Send OTP (Mock implementation if iprog_sms is not ready)
-        // $res = iprog_send_otp($contact_norm, null);
-        // if (!$res['success']) {
-        //     error_log("[AppointmentEase] Signup OTP send failed: " . print_r($res, true));
-        //     $errors[] = "Failed to send OTP. Please try again later.";
-        //     unset($_SESSION['pending_signup']);
-        //     log_security_event('signup_otp_send_failed', ['contact' => $contact_norm]);
-        // } else {
-        //     log_security_event('signup_otp_sent', ['contact' => $contact_norm]);
-        //     header('Location: verify_signup_otp.php');
-        //     exit;
-        // }
-      
+        // Send OTP
+        $res = iprog_send_otp($contact_norm);
         
-        // Redirect to OTP verification (Mock Success)
-        header('Location: verify_signup_otp.php');
-        exit;
+        if ($res['success']) {
+            header('Location: verify_otp.php'); // Universal OTP Page
+            exit;
+        } else {
+            $errors[] = "Failed to send OTP. Please try again.";
+            error_log("OTP Send Error: " . print_r($res, true));
+        }
     }
 }
 ?>
@@ -142,14 +127,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - Untalan General Hospital</title>
+    <title>Sign Up - AppointEase</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         .bg-pattern { background-color: #ffffff; background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
-        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15); }
         .input-field:focus { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
     </style>
 </head>
@@ -181,10 +165,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <div class="bg-white/20 p-2 rounded-full mt-1"><i data-lucide="check" class="w-4 h-4"></i></div>
                         <div><p class="font-semibold">Secure Records</p><p class="text-sm text-blue-200">Your medical history, safe and sound.</p></div>
                     </div>
-                    <div class="flex items-start space-x-4">
-                        <div class="bg-white/20 p-2 rounded-full mt-1"><i data-lucide="check" class="w-4 h-4"></i></div>
-                        <div><p class="font-semibold">Real-time Updates</p><p class="text-sm text-blue-200">Get notified instantly.</p></div>
-                    </div>
                 </div>
             </div>
             
@@ -196,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <div class="md:col-span-3 p-8 md:p-12 overflow-y-auto h-full">
             
             <div class="md:hidden mb-8 text-center">
-                <h2 class="text-2xl font-bold text-gray-800">Untalan General Hospital</h2>
+                <h2 class="text-2xl font-bold text-gray-800">AppointEase</h2>
                 <p class="text-gray-500">Patient Registration</p>
             </div>
 
@@ -225,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 <h3 class="text-sm font-medium text-red-800">There were errors with your submission</h3>
                                 <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
                                     <?php foreach ($errors as $error): ?>
-                                        <li><?= e($error) ?></li>
+                                        <li><?= htmlspecialchars($error) ?></li>
                                     <?php endforeach; ?>
                                 </ul>
                             </div>
@@ -243,31 +223,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
-                                <input type="text" name="first_name" required value="<?= e($prefill['first_name'] ?? '') ?>"
+                                <input type="text" name="first_name" required value="<?= htmlspecialchars($prefill['first_name'] ?? '') ?>"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
-                                <input type="text" name="last_name" required value="<?= e($prefill['last_name'] ?? '') ?>"
+                                <input type="text" name="last_name" required value="<?= htmlspecialchars($prefill['last_name'] ?? '') ?>"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name (Optional)</label>
-                                <input type="text" name="middle_name" value="<?= e($prefill['middle_name'] ?? '') ?>"
+                                <input type="text" name="middle_name" value="<?= htmlspecialchars($prefill['middle_name'] ?? '') ?>"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Birth Date <span class="text-red-500">*</span></label>
-                                <input type="date" name="bdate" required value="<?= e($prefill['bdate'] ?? '') ?>" max="<?= date('Y-m-d', strtotime('-13 years')) ?>"
+                                <input type="date" name="bdate" required value="<?= htmlspecialchars($prefill['bdate'] ?? '') ?>" max="<?= date('Y-m-d', strtotime('-13 years')) ?>"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Gender <span class="text-red-500">*</span></label>
                                 <select name="gender" required class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white">
                                     <option value="">Select Gender</option>
-                                    <option value="male" <?= ($prefill['gender'] ?? '') === 'male' ? 'selected' : '' ?>>Male</option>
-                                    <option value="female" <?= ($prefill['gender'] ?? '') === 'female' ? 'selected' : '' ?>>Female</option>
-                                    <option value="other" <?= ($prefill['gender'] ?? '') === 'other' ? 'selected' : '' ?>>Other</option>
+                                    <option value="Male" <?= ($prefill['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
+                                    <option value="Female" <?= ($prefill['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                                    <option value="Other" <?= ($prefill['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
                                 </select>
                             </div>
                         </div>
@@ -280,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Complete Address <span class="text-red-500">*</span></label>
-                                <input type="text" name="address" required value="<?= e($prefill['address'] ?? '') ?>" placeholder="Unit, Street, Barangay, City, Province"
+                                <input type="text" name="address" required value="<?= htmlspecialchars($prefill['address'] ?? '') ?>" placeholder="Unit, Street, Barangay, City, Province"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
                             <div>
@@ -289,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <i data-lucide="smartphone" class="w-5 h-5 text-gray-400"></i>
                                     </div>
-                                    <input type="tel" name="contact" required value="<?= e($prefill['contact'] ?? '') ?>" placeholder="09171234567" pattern="^(09|\+639)[0-9]{9}$"
+                                    <input type="tel" name="contact" required value="<?= htmlspecialchars($prefill['contact'] ?? '') ?>" placeholder="09171234567" pattern="^(09|\+639)[0-9]{9}$"
                                         class="input-field w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">We will send an OTP to verify this number.</p>
@@ -304,7 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
-                                <input type="text" name="user_name" required value="<?= e($prefill['user_name'] ?? '') ?>" minlength="4"
+                                <input type="text" name="user_name" required value="<?= htmlspecialchars($prefill['user_name'] ?? '') ?>" minlength="4" maxlength="30"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
                             
