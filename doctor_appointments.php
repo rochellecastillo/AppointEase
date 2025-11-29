@@ -3,7 +3,7 @@
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
-require_once 'iprog_sms.php'; // <--- 1. Include the SMS helper
+require_once 'iprog_sms.php'; // Included SMS helper
 
 session_require_auth(['doctor']);
 $user_id = session_get_user_id();
@@ -32,34 +32,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$new_status, $appt_id]);
 
                 // --- SMS LOGIC START ---
-                if ($action === 'approve') {
-                    // 1. Fetch Patient Info & Appointment Details
-                    $infoStmt = $pdo->prepare("
-                        SELECT i.contact, i.first_name, a.booking_date, a.booking_time 
-                        FROM tblappointment a 
-                        JOIN tblinfo i ON a.user_id = i.user_id 
-                        WHERE a.id = ?
-                    ");
-                    $infoStmt->execute([$appt_id]);
-                    $apptData = $infoStmt->fetch(PDO::FETCH_ASSOC);
+                // Fetch Patient Info regardless of Approve/Decline
+                $infoStmt = $pdo->prepare("
+                    SELECT i.contact, i.first_name, a.booking_date, a.booking_time 
+                    FROM tblappointment a 
+                    JOIN tblinfo i ON a.user_id = i.user_id 
+                    WHERE a.id = ?
+                ");
+                $infoStmt->execute([$appt_id]);
+                $apptData = $infoStmt->fetch(PDO::FETCH_ASSOC);
 
-                    if ($apptData && !empty($apptData['contact'])) {
-                        // 2. Construct Message
-                        $formattedDate = date('M d, Y', strtotime($apptData['booking_date']));
-                        $formattedTime = date('h:i A', strtotime($apptData['booking_time']));
-                        
-                        $smsContent = "Hello {$apptData['first_name']}, your appointment request for $formattedDate at $formattedTime has been CONFIRMED by the doctor. - AppointEase";
-
-                        // 3. Send SMS
+                if ($apptData && !empty($apptData['contact'])) {
+                    $formattedDate = date('M d, Y', strtotime($apptData['booking_date']));
+                    $formattedTime = date('h:i A', strtotime($apptData['booking_time']));
+                    
+                    if ($action === 'approve') {
+                        // APPROVE MESSAGE
+                        $smsContent = "Hello {$apptData['first_name']}, your appointment for $formattedDate at $formattedTime has been CONFIRMED by the doctor. - AppointEase";
                         iprog_send_sms($apptData['contact'], $smsContent);
+                        $message = "Appointment confirmed & SMS sent.";
+                    } elseif ($action === 'decline') {
+                        // DECLINE MESSAGE (New Feature)
+                        $smsContent = "Hello {$apptData['first_name']}, unfortunately your appointment request for $formattedDate at $formattedTime has been DECLINED by the doctor. Please reschedule. - AppointEase";
+                        iprog_send_sms($apptData['contact'], $smsContent);
+                        $message = "Appointment declined & SMS notification sent.";
                     }
+                } else {
+                    $message = ($action === 'approve') ? "Appointment confirmed (No SMS sent - contact missing)." : "Appointment declined.";
                 }
                 // --- SMS LOGIC END ---
 
                 $pdo->commit(); // Commit Transaction
-
-                $message = ($action === 'approve') ? "Appointment confirmed & SMS sent." : "Appointment declined.";
-                $msg_type = ($action === 'approve') ? "success" : "error";
+                $msg_type = ($action === 'approve') ? "success" : "success"; // Both actions successful
 
             } catch (Exception $e) {
                 $pdo->rollBack();
@@ -75,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // --- 2. FETCH APPOINTMENTS ---
 $filter = $_GET['status'] ?? 'upcoming';
-$today = date('Y-m-d'); // <-- This variable is correctly defined and will be used below.
+$today = date('Y-m-d'); 
 
 $sql = "SELECT a.id, a.booking_date, a.booking_time, a.status, 
                 i.first_name, i.last_name, i.contact, i.gender, i.bdate, i.address
@@ -157,7 +161,7 @@ function getAge($dob) {
                 <?php if ($message): ?>
                     <div class="mb-6 p-4 rounded-xl border flex items-center gap-3 <?= $msg_type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200' ?>">
                         <i data-lucide="<?= $msg_type === 'success' ? 'check-circle' : 'alert-circle' ?>" class="w-5 h-5"></i>
-                        <?= e($message) ?>
+                        <?= htmlspecialchars($message) ?>
                     </div>
                 <?php endif; ?>
 
@@ -172,7 +176,7 @@ function getAge($dob) {
                         </div>
                     <?php else: ?>
                         <?php foreach ($appointments as $apt): 
-                            $patientName = e($apt['first_name'] . ' ' . $apt['last_name']);
+                            $patientName = htmlspecialchars($apt['first_name'] . ' ' . $apt['last_name']);
                             $timeStr = date('h:i A', strtotime($apt['booking_time']));
                             $dateStr = date('M d, Y (D)', strtotime($apt['booking_date']));
                             $age = getAge($apt['bdate']);
@@ -197,9 +201,9 @@ function getAge($dob) {
                                 </div>
                                 
                                 <div class="flex flex-wrap gap-4 text-sm text-slate-500 mt-2">
-                                    <span class="flex items-center gap-1"><i data-lucide="user" width="14"></i> <?= $age ?> yrs, <?= e($apt['gender']) ?></span>
-                                    <span class="flex items-center gap-1"><i data-lucide="phone" width="14"></i> <?= e($apt['contact']) ?></span>
-                                    <span class="flex items-center gap-1"><i data-lucide="map-pin" width="14"></i> <?= e($apt['address']) ?></span>
+                                    <span class="flex items-center gap-1"><i data-lucide="user" width="14"></i> <?= $age ?> yrs, <?= htmlspecialchars($apt['gender']) ?></span>
+                                    <span class="flex items-center gap-1"><i data-lucide="phone" width="14"></i> <?= htmlspecialchars($apt['contact']) ?></span>
+                                    <span class="flex items-center gap-1"><i data-lucide="map-pin" width="14"></i> <?= htmlspecialchars($apt['address']) ?></span>
                                 </div>
                             </div>
 
@@ -214,13 +218,13 @@ function getAge($dob) {
                                             Approve
                                         </button>
                                     </form>
-                                <?php elseif($filter === 'upcoming' && $apt['booking_date'] === $today): ?>
+                                <!-- <?php elseif($filter === 'upcoming' && $apt['booking_date'] === $today): ?> Note: remove this today if you want to see the consultation -->
                                     <a href="doctor_consultation.php?id=<?= $apt['id'] ?>" class="w-full md:w-auto px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition shadow-sm text-sm text-center">
                                         Start Consultation
                                     </a>
-                                    <?php endif; ?>
+                                <?php endif; ?>
                                 
-                                <a href="doctor_records.php?patient_id=<?= $apt['id'] /* Note: technically should be user_id lookup */ ?>" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition" title="View Records">
+                                <a href="doctor_records.php?patient_id=<?= $apt['id'] /* Note: user_id lookup logic might be needed if patient_id != id */ ?>" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition" title="View Records">
                                     <i data-lucide="file-clock" width="20"></i>
                                 </a>
                             </div>

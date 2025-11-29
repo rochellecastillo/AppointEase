@@ -9,7 +9,7 @@ session_require_auth(['user']);
 $user_id = session_get_user_id();
 
 // --- 1. FETCH RECORDS ---
-// Get appointments and join with medical records if they exist
+// Only fetch appointments that have a corresponding medical record entry
 $search = $_GET['search'] ?? '';
 $date_filter = $_GET['date'] ?? '';
 
@@ -23,14 +23,12 @@ $sql = "SELECT
             d.specialization, 
             mr.diagnosis, 
             mr.prescription, 
-            mr.notes, 
-            mr.created_at AS record_date
+            mr.notes
         FROM tblappointment a
         JOIN tblinfo d ON a.doctor = d.user_id
-        LEFT JOIN tbl_medical_records mr ON a.id = mr.appointment_id
+        JOIN tbl_medical_records mr ON a.id = mr.appointment_id
         WHERE a.user_id = ? 
-        AND a.status != 0 -- Exclude cancelled
-        AND a.booking_date <= CURRENT_DATE()";
+        AND a.status = 3"; // Status 3 = Completed (Based on doctor_consultation.php logic)
 
 $params = [$user_id];
 
@@ -74,13 +72,14 @@ try {
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             body { background: white; }
-            #recordModal { position: static; overflow: visible; height: auto; }
+            #recordModal { position: static; overflow: visible; height: auto; background: white; }
             #recordModalContent { 
-                box-shadow: none; border: 2px solid #000; width: 100%; max-width: 100%; 
+                box-shadow: none; border: none; width: 100%; max-width: 100%; 
                 position: static; transform: none; margin: 0; 
             }
             .modal-backdrop { display: none; }
         }
+        .print-header { display: none; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -135,20 +134,19 @@ try {
                         <?php foreach($records as $rec): 
                             $docName = "Dr. " . e($rec['first_name']) . " " . e($rec['last_name']);
                             $dateObj = new DateTime($rec['booking_date']);
-                            $hasRecord = !empty($rec['diagnosis']); // Check if record exists
                             
                             // Prepare JSON data for modal
                             $modalData = htmlspecialchars(json_encode([
                                 'date' => $dateObj->format('F d, Y'),
                                 'doctor' => $docName,
                                 'spec' => e($rec['specialization']),
-                                'diagnosis' => e($rec['diagnosis'] ?? 'No diagnosis recorded.'),
+                                'diagnosis' => e($rec['diagnosis']),
                                 'prescription' => e($rec['prescription'] ?? 'None'),
                                 'notes' => e($rec['notes'] ?? 'No additional notes.')
                             ]), ENT_QUOTES, 'UTF-8');
                         ?>
                         <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-                            <div class="absolute left-0 top-0 bottom-0 w-1.5 <?= $hasRecord ? 'bg-green-500' : 'bg-gray-300' ?>"></div>
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-green-500"></div>
 
                             <div class="flex flex-col md:flex-row gap-6">
                                 <div class="md:w-32 flex-shrink-0 flex flex-col items-start md:items-center text-center md:border-r md:border-gray-100 md:pr-6">
@@ -166,32 +164,20 @@ try {
                                                 <?= e($rec['specialization'] ?: 'General Practitioner') ?>
                                             </p>
                                         </div>
-                                        <?php if($hasRecord): ?>
-                                            <span class="px-3 py-1 bg-green-50 text-green-700 border border-green-100 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1">
-                                                <i data-lucide="check-circle" class="w-3 h-3"></i> Report Ready
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-bold uppercase tracking-wide">
-                                                Pending Report
-                                            </span>
-                                        <?php endif; ?>
+                                        <span class="px-3 py-1 bg-green-50 text-green-700 border border-green-100 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1">
+                                            <i data-lucide="check-circle" class="w-3 h-3"></i> Completed
+                                        </span>
                                     </div>
 
-                                    <?php if($hasRecord): ?>
-                                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
-                                            <p class="text-sm text-gray-800">
-                                                <span class="font-bold text-gray-500 uppercase text-xs mr-2">Diagnosis:</span>
-                                                <?= e($rec['diagnosis']) ?>
-                                            </p>
-                                        </div>
-                                        <button onclick='openRecordModal(<?= $modalData ?>)' class="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1 transition">
-                                            View Full Details & Print <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                                        </button>
-                                    <?php else: ?>
-                                        <p class="text-sm text-gray-500 italic">
-                                            The doctor has not uploaded the medical record for this visit yet.
+                                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
+                                        <p class="text-sm text-gray-800">
+                                            <span class="font-bold text-gray-500 uppercase text-xs mr-2">Diagnosis:</span>
+                                            <?= e($rec['diagnosis']) ?>
                                         </p>
-                                    <?php endif; ?>
+                                    </div>
+                                    <button onclick='openRecordModal(<?= $modalData ?>)' class="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1 transition">
+                                        View Full Details & Print <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -238,7 +224,7 @@ try {
                         </div>
                         <div>
                             <p class="text-xs font-bold text-gray-400 uppercase mb-1">Patient</p>
-                            <p class="font-semibold text-gray-900 text-lg"><?= e($user_id) /* You might want to fetch real name here */ ?></p>
+                            <p class="font-semibold text-gray-900 text-lg"><?= e($user_id) ?></p>
                             <p class="text-sm text-gray-500">Patient ID</p>
                         </div>
                     </div>

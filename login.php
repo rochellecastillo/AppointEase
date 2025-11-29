@@ -121,44 +121,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6; /* Light gray background as fallback */
+            background-color: #f3f4f6;
         }
-        
-        /* Custom Background Pattern */
         .bg-pattern {
             background-color: #ffffff;
             background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
-
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
-        }
-
-        .input-group:focus-within label {
-            color: #2563eb; /* Blue-600 */
-        }
-        
-        .input-group:focus-within i {
-            color: #2563eb;
-        }
-
-        .input-field {
-            transition: all 0.3s ease;
-        }
-
-        .input-field:focus {
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); /* Blue ring */
-        }
-
-        /* Animated Gradient Text */
-        .text-gradient {
-            background: linear-gradient(to right, #1e40af, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+        .input-group:focus-within label, .input-group:focus-within i { color: #2563eb; }
+        .input-field { transition: all 0.3s ease; }
+        .input-field:focus { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 bg-pattern">
@@ -177,27 +148,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <span class="text-xl font-bold tracking-wide">AppointEase</span>
                 </div>
                 
-                <h1 class="text-4xl font-bold leading-tight mb-6">
-                    Your Health, <br/>Our Priority.
-                </h1>
-                <p class="text-blue-100 text-lg leading-relaxed mb-8">
-                    Experience seamless healthcare management with Untalan General Hospital's advanced scheduling system.
-                </p>
+                <h1 class="text-4xl font-bold leading-tight mb-6">Your Health, <br/>Our Priority.</h1>
+                <p class="text-blue-100 text-lg leading-relaxed mb-8">Experience seamless healthcare management with Untalan General Hospital's advanced scheduling system.</p>
                 
                 <div class="space-y-4">
                     <div class="flex items-center space-x-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
-                        <div class="bg-white/20 p-2 rounded-full">
-                            <i data-lucide="clock" class="w-5 h-5"></i>
-                        </div>
+                        <div class="bg-white/20 p-2 rounded-full"><i data-lucide="clock" class="w-5 h-5"></i></div>
                         <div>
                             <p class="font-semibold">24/7 Access</p>
                             <p class="text-sm text-blue-200">Book anytime, anywhere</p>
                         </div>
                     </div>
                     <div class="flex items-center space-x-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
-                        <div class="bg-white/20 p-2 rounded-full">
-                            <i data-lucide="shield-check" class="w-5 h-5"></i>
-                        </div>
+                        <div class="bg-white/20 p-2 rounded-full"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
                         <div>
                             <p class="font-semibold">Secure System</p>
                             <p class="text-sm text-blue-200">Your data is protected</p>
@@ -233,14 +196,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php if ($success): ?>
                     <div class="flex items-center p-4 mb-6 text-sm text-green-700 bg-green-50 rounded-xl border border-green-100" role="alert">
                         <i data-lucide="check-circle-2" class="w-5 h-5 mr-3 flex-shrink-0"></i>
-                        <span><?= e($success) ?></span>
+                        <span><?= htmlspecialchars($success) ?></span>
                     </div>
                 <?php endif; ?>
 
                 <?php if ($error): ?>
                     <div class="flex items-center p-4 mb-6 text-sm text-red-700 bg-red-50 rounded-xl border border-red-100" role="alert">
                         <i data-lucide="alert-circle" class="w-5 h-5 mr-3 flex-shrink-0"></i>
-                        <span><?= e($error) ?></span>
+                        <span><?= htmlspecialchars($error) ?></span>
                     </div>
                 <?php endif; ?>
 
@@ -252,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <i data-lucide="user" class="w-5 h-5 text-gray-400 transition-colors"></i>
                             </div>
                             <input type="text" name="username" id="username" required autofocus
-                                value="<?= e($_POST['username'] ?? '') ?>"
+                                value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
                                 class="input-field w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500"
                                 placeholder="Enter your username">
                         </div>
@@ -307,35 +270,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
-        // Initialize Lucide icons
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        
-        // Toggle password visibility
-        function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const eyeIcon = document.getElementById('eye-icon');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                eyeIcon.setAttribute('data-lucide', 'eye-off');
-            } else {
-                passwordInput.type = 'password';
-                eyeIcon.setAttribute('data-lucide', 'eye');
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Initialize Lucide icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
             }
-            
-            // Re-initialize icons to update the eye icon
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-        
-        // Auto-dismiss success/error messages after 5 seconds with fade out
-        setTimeout(() => {
+
+            // 2. Password Toggle Logic
+            window.togglePassword = function() {
+                const passwordInput = document.getElementById('password');
+                const eyeIcon = document.getElementById('eye-icon');
+                
+                if (!passwordInput || !eyeIcon) return;
+
+                const isPassword = passwordInput.type === 'password';
+                
+                // Toggle Type
+                passwordInput.type = isPassword ? 'text' : 'password';
+                
+                // Toggle Icon Attribute
+                eyeIcon.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
+                
+                // Re-render icon
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            };
+
+            // 3. Auto-dismiss alerts
             const alerts = document.querySelectorAll('[role="alert"]');
-            alerts.forEach(alert => {
-                alert.style.transition = 'opacity 0.5s ease-out';
-                alert.style.opacity = '0';
-                setTimeout(() => alert.remove(), 500);
-            });
-        }, 5000);
+            if (alerts.length > 0) {
+                setTimeout(() => {
+                    alerts.forEach(alert => {
+                        alert.style.transition = 'opacity 0.5s ease-out';
+                        alert.style.opacity = '0';
+                        setTimeout(() => alert.remove(), 500);
+                    });
+                }, 5000);
+            }
+        });
     </script>
 </body>
 </html>

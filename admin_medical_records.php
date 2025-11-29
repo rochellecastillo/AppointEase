@@ -88,8 +88,12 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <title>Patient Health Profiles - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; }</style>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .error-border { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div class="flex h-screen overflow-hidden">
@@ -107,10 +111,17 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="p-6 max-w-7xl mx-auto">
                 
                 <?php if(isset($_GET['msg']) && $_GET['msg'] == 'success'): ?>
-                    <div class="mb-6 p-4 rounded-xl flex items-center gap-3 bg-green-50 text-green-700 border border-green-200">
-                        <i data-lucide="check-circle" class="w-5 h-5"></i>
-                        <span class="font-medium">Patient health profile updated successfully.</span>
-                    </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Updated',
+                                text: 'Patient health profile updated successfully.',
+                                confirmButtonColor: '#9333ea',
+                                timer: 3000
+                            });
+                        });
+                    </script>
                 <?php endif; ?>
 
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6">
@@ -208,7 +219,7 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-3xl">
                     
-                    <form method="POST">
+                    <form method="POST" id="updateForm">
                         <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 z-10">
                             <div>
                                 <h3 class="text-lg font-bold text-gray-900">Manage Health Profile</h3>
@@ -235,11 +246,11 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1">Height (cm)</label>
-                                    <input type="number" name="height" id="mHeight" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+                                    <input type="number" step="0.01" name="height" id="mHeight" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:border-purple-500 focus:outline-none" placeholder="0.00">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1">Weight (kg)</label>
-                                    <input type="number" name="weight" id="mWeight" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+                                    <input type="number" step="0.01" name="weight" id="mWeight" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:border-purple-500 focus:outline-none" placeholder="0.00">
                                 </div>
                             </div>
 
@@ -253,7 +264,7 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1">Phone Number</label>
-                                    <input type="text" name="ec_phone" id="mEcPhone" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+                                    <input type="text" name="ec_phone" id="mEcPhone" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:border-purple-500 focus:outline-none" placeholder="09XXXXXXXXX">
                                 </div>
                             </div>
 
@@ -300,8 +311,9 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script>
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         const modal = document.getElementById('profileModal');
+        const form = document.getElementById('updateForm');
 
         function openModal(data) {
             // Basic Info
@@ -330,6 +342,48 @@ $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
         function closeModal() {
             modal.classList.add('hidden');
         }
+
+        // Validation Logic
+        form.addEventListener('submit', function(e) {
+            let isValid = true;
+            let messages = [];
+
+            const height = document.getElementById('mHeight');
+            const weight = document.getElementById('mWeight');
+            const phone = document.getElementById('mEcPhone');
+
+            // Reset previous errors
+            [height, weight, phone].forEach(el => el.classList.remove('error-border'));
+
+            // Validate Numeric Height/Weight
+            if (height.value && (height.value < 0 || height.value > 300)) {
+                isValid = false;
+                height.classList.add('error-border');
+                messages.push("Height seems invalid (0-300 cm).");
+            }
+            if (weight.value && (weight.value < 0 || weight.value > 500)) {
+                isValid = false;
+                weight.classList.add('error-border');
+                messages.push("Weight seems invalid.");
+            }
+
+            // Validate Phone if entered
+            if (phone.value && !/^(09|\+639)\d{9}$/.test(phone.value)) {
+                isValid = false;
+                phone.classList.add('error-border');
+                messages.push("Invalid Phone Format (use 09xxxxxxxxx).");
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Check Input',
+                    html: messages.join('<br>'),
+                    confirmButtonColor: '#ef4444'
+                });
+            }
+        });
 
         // Mobile Sidebar Toggle
         const mobileMenuBtn = document.getElementById('mobileMenuBtn');

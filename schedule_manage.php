@@ -12,23 +12,36 @@ session_require_auth(['admin', 'doctor']);
 $user_id = session_get_user_id();
 $user_type = session_get_user_type();
 
+// --- 1. DETERMINE TARGET DOCTOR ---
+// Admin can see all, Doctor sees only themselves
+$doctors = [];
+if ($user_type === 'admin') {
+    $doctors = $pdo->query("SELECT u.user_id, i.first_name, i.last_name FROM tbluser u JOIN tblinfo i ON u.user_id = i.user_id WHERE u.user_type='doctor'")->fetchAll();
+    
+    // FIX: Check for 'doctor_id' (matches link) OR 'doctor_filter'
+    $target_doctor = $_GET['doctor_id'] ?? $_GET['doctor_filter'] ?? ($doctors[0]['user_id'] ?? '');
+} else {
+    $target_doctor = $user_id;
+}
+
 // --- API: AJAX HANDLER FOR CALENDAR DATA ---
 if (isset($_GET['action']) && $_GET['action'] === 'get_calendar_data') {
     ob_end_clean();
     header('Content-Type: application/json');
 
     try {
-        $target_doctor = ($user_type === 'admin') ? ($_GET['doctor_id'] ?? '') : $user_id;
+        // Use the ID passed to the API, or fall back to the context
+        $api_target = ($user_type === 'admin') ? ($_GET['target_id'] ?? $target_doctor) : $user_id;
 
-        if (!$target_doctor) throw new Exception("No doctor ID selected.");
+        if (!$api_target) throw new Exception("No doctor ID selected.");
 
         // 1. Get Weekly Roster
         $roster_stmt = $pdo->prepare("SELECT day, time, time2, max_appointment FROM tblschedule WHERE user_id = ?");
-        $roster_stmt->execute([$target_doctor]);
+        $roster_stmt->execute([$api_target]);
         
         // 2. Get Blocked Dates
         $leaves_stmt = $pdo->prepare("SELECT id, date_start, date_end, reason FROM tblnoappointment WHERE doctor_id = ?");
-        $leaves_stmt->execute([$target_doctor]);
+        $leaves_stmt->execute([$api_target]);
         
         echo json_encode([
             'status' => 'success',
@@ -50,10 +63,13 @@ $message = '';
 $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $target_doctor = ($user_type === 'admin') ? ($_POST['doctor_id'] ?? '') : $user_id;
     $todayStr = date('Y-m-d');
 
-    if ($target_doctor) {
+    // Admin might submit form for a different doctor than the one in URL? 
+    // Usually safest to use the hidden field ID or the context ID.
+    $form_doctor_id = ($user_type === 'admin') ? ($_POST['doctor_id'] ?? $target_doctor) : $user_id;
+
+    if ($form_doctor_id) {
         // 1. BLOCK DATE
         if (isset($_POST['block_date'])) {
             $date = $_POST['date_start'];
@@ -65,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 try {
                     $stmt = $pdo->prepare("INSERT INTO tblnoappointment (doctor_id, date_start, date_end, reason) VALUES (?, ?, ?, ?)");
-                    $stmt->execute([$target_doctor, $date, $date, $reason]);
+                    $stmt->execute([$form_doctor_id, $date, $date, $reason]);
                     $message = "Date blocked successfully.";
                     $msg_type = 'success';
                 } catch (Exception $e) { 
@@ -80,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $date = $_POST['date_to_unblock'];
             try {
                 $stmt = $pdo->prepare("DELETE FROM tblnoappointment WHERE doctor_id = ? AND date_start = ?");
-                $stmt->execute([$target_doctor, $date]);
+                $stmt->execute([$form_doctor_id, $date]);
                 $message = "Date unblocked successfully.";
                 $msg_type = 'success';
             } catch (Exception $e) {
@@ -99,11 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             try {
                 // Clear existing roster for this day index first
-                $pdo->prepare("DELETE FROM tblschedule WHERE user_id = ? AND day = ?")->execute([$target_doctor, $day]);
+                $pdo->prepare("DELETE FROM tblschedule WHERE user_id = ? AND day = ?")->execute([$form_doctor_id, $day]);
 
                 if ($is_active && $time_start && $time_end) {
                     $stmt = $pdo->prepare("INSERT INTO tblschedule (user_id, day, time, time2, max_appointment) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute([$target_doctor, $day, $time_start, $time_end, $max]);
+                    $stmt->execute([$form_doctor_id, $day, $time_start, $time_end, $max]);
                     $message = "Weekly schedule updated.";
                 } else {
                     $message = "Weekly schedule removed for this day.";
@@ -119,13 +135,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_type = 'error';
     }
 }
-
-// Fetch Doctors List (Admin only)
-$doctors = [];
-if ($user_type === 'admin') {
-    $doctors = $pdo->query("SELECT u.user_id, i.first_name, i.last_name FROM tbluser u JOIN tblinfo i ON u.user_id = i.user_id WHERE u.user_type='doctor'")->fetchAll();
-}
-$selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($doctors[0]['user_id'] ?? '')) : $user_id;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -158,6 +167,11 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                 
                 <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
                     <div>
+                        <?php if($user_type === 'admin'): ?>
+                        <a href="doctors_info_report.php" class="inline-flex items-center text-xs text-gray-500 hover:text-purple-600 mb-2 transition">
+                            <i data-lucide="arrow-left" class="w-3 h-3 mr-1"></i> Back to Doctors
+                        </a>
+                        <?php endif; ?>
                         <h1 class="text-2xl font-bold text-gray-900">Schedule Calendar</h1>
                         <p class="text-gray-500 text-sm">Manage availability and blocked dates.</p>
                     </div>
@@ -167,7 +181,7 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                         <label class="text-xs font-bold uppercase text-gray-400 ml-2">Managing:</label>
                         <select id="doctorSelector" class="bg-transparent text-sm font-semibold focus:outline-none cursor-pointer">
                             <?php foreach($doctors as $d): ?>
-                                <option value="<?= $d['user_id'] ?>" <?= $selected_doctor == $d['user_id'] ? 'selected' : '' ?>>
+                                <option value="<?= $d['user_id'] ?>" <?= $target_doctor == $d['user_id'] ? 'selected' : '' ?>>
                                     Dr. <?= htmlspecialchars($d['last_name']) ?>
                                 </option>
                             <?php endforeach; ?>
@@ -316,8 +330,14 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
         // Init
         document.addEventListener('DOMContentLoaded', () => {
             if (doctorSelector) {
+                // Fetch data immediately for the doctor set by PHP
                 fetchData();
-                doctorSelector.addEventListener('change', fetchData);
+                
+                // FIX: When dropdown changes, redirect so the URL matches the view
+                doctorSelector.addEventListener('change', function() {
+                    const selectedId = this.value;
+                    window.location.search = '?doctor_id=' + selectedId;
+                });
             }
         });
 
@@ -327,7 +347,8 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
 
             monthDisplay.textContent = "Loading...";
             try {
-                const response = await fetch(`?action=get_calendar_data&doctor_id=${docId}`);
+                // Ensure we pass target_id to AJAX so it matches the dropdown
+                const response = await fetch(`?action=get_calendar_data&target_id=${docId}`);
                 const data = await response.json();
                 
                 if (data.status === 'error') throw new Error(data.message);
@@ -370,20 +391,16 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
                     String(dateObj.getDate()).padStart(2, '0')
                 ].join('-');
                 
-                // Important: Map JS Day (0=Sun) to your DB Logic
-                // If DB uses 7 for Sunday, use: const dbDayIndex = (dayIndex === 0) ? 7 : dayIndex;
-                // If DB uses 1=Mon..7=Sun: const dbDayIndex = (dayIndex === 0) ? 7 : dayIndex;
-                // Assuming standard 0-6 for now based on your previous scripts, or 1-7.
-                // Let's use standard JS getDay() (0-6) for logic in JS, and match DB in PHP.
                 const dayIndex = dateObj.getDay(); 
                 
                 // Check Logic
                 const isPast = dateObj < today;
                 const leave = leaveData.find(l => dateStr >= l.date_start && dateStr <= l.date_end);
                 
-                // Find roster match. Note: Ensure DB `day` matches JS `dayIndex` format
-                // If DB is 1-7 (Mon-Sun), we need to convert JS 0-6 (Sun-Sat)
-                // Let's assume you fixed DB to 1-7. JS 0(Sun) -> 7. JS 1(Mon) -> 1.
+                // Important: Match DB Logic. If DB uses 1=Monday...7=Sunday, we need to convert JS (0=Sunday)
+                // Assuming DB uses 1-7 (Mon-Sun) based on common PHP usage, 
+                // JS: 0=Sun, 1=Mon...6=Sat.
+                // Conversion: (0 -> 7), (1 -> 1)
                 let dbDay = (dayIndex === 0) ? 7 : dayIndex; 
                 const shift = rosterData.find(r => parseInt(r.day) === dbDay);
 
@@ -420,7 +437,7 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
             // Set Hidden Inputs
             document.getElementById('formBlockDate').value = dateStr;
             document.getElementById('formUnblockDate').value = dateStr;
-            document.getElementById('formRosterDayIndex').value = dbDay; // Send DB-compatible day index
+            document.getElementById('formRosterDayIndex').value = dbDay; 
             
             const docId = doctorSelector.value;
             if(document.getElementById('formBlockDocId')) document.getElementById('formBlockDocId').value = docId;
@@ -436,7 +453,7 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
             } else {
                 document.getElementById('unblockForm').classList.add('hidden');
                 document.getElementById('blockForm').classList.remove('hidden');
-                switchModalTab('roster'); // Default to roster if free
+                switchModalTab('roster'); 
             }
 
             // Setup Roster Form
@@ -452,12 +469,10 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
             } else {
                 rosterActive.checked = false;
                 rosterInputs.classList.add('opacity-50', 'pointer-events-none');
-                // Default values
                 document.getElementById('rosterStart').value = '08:00';
                 document.getElementById('rosterEnd').value = '17:00';
             }
 
-            // Toggle inputs on checkbox click
             rosterActive.onclick = function() {
                 if(this.checked) rosterInputs.classList.remove('opacity-50', 'pointer-events-none');
                 else rosterInputs.classList.add('opacity-50', 'pointer-events-none');
@@ -497,7 +512,6 @@ $selected_doctor = ($user_type === 'admin') ? ($_GET['doctor_filter'] ?? ($docto
             return d.toLocaleTimeString('en-US', {hour:'numeric', minute:'numeric', hour12:true}); 
         }
         
-        // Month Nav
         document.getElementById('prevMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth()-1); fetchData(); };
         document.getElementById('nextMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth()+1); fetchData(); };
         document.getElementById('todayBtn').onclick = () => { currentDate = new Date(); fetchData(); };
