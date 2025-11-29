@@ -10,6 +10,9 @@ require_once 'logging_helper.php';
 session_require_auth(['user']);
 $user_id = session_get_user_id();
 
+// Capture Pre-selected Doctor from URL (e.g. coming from Find Doctors)
+$preselected_doctor = $_GET['doctor_id'] ?? '';
+
 // =============================================================================
 // API: HANDLE AJAX REQUESTS
 // =============================================================================
@@ -75,7 +78,6 @@ if (isset($_GET['action'])) {
             }
 
             // 2. Rule: Check if User Already Has an Appointment on This Date
-            // (Any active appointment, regardless of doctor)
             $userCheck = $pdo->prepare("SELECT id FROM tblappointment WHERE user_id = ? AND booking_date = ? AND status != 0");
             $userCheck->execute([$user_id, $date]);
             if ($userCheck->rowCount() > 0) {
@@ -165,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($check->rowCount() == 0) {
                     $stmt = $pdo->prepare("INSERT INTO tblappointment (booking_date, booking_time, user_id, doctor, status) VALUES (?, ?, ?, ?, 2)");
                     if ($stmt->execute([$date, $time, $user_id, $doctor])) {
-                        header("Location: client_appointments.php?booking=success");
+                        header("Location: book_appointment.php?booking=success"); 
                         exit;
                     }
                 } else {
@@ -189,6 +191,7 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
     <title>Book Appointment - AppointEase</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -225,11 +228,6 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
                 <header class="mb-6">
                     <h1 class="text-3xl font-bold text-gray-900">Schedule Appointment</h1>
                     <p class="text-gray-500">Select a doctor and choose a date.</p>
-                    <?php if ($message): ?>
-                        <div class="mt-4 p-3 bg-red-100 text-red-700 rounded-lg flex items-center gap-2">
-                            <i data-lucide="alert-circle" width="18"></i> <?= e($message) ?>
-                        </div>
-                    <?php endif; ?>
                 </header>
 
                 <form method="POST" id="bookingForm" class="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
@@ -242,7 +240,9 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
                                 <select name="doctor" id="doctorSelect" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition">
                                     <option value="" disabled selected>Choose a doctor...</option>
                                     <?php foreach ($doctors as $doc): ?>
-                                        <option value="<?= e($doc['user_id']) ?>">Dr. <?= e($doc['first_name'].' '.$doc['last_name']) ?> (<?= e($doc['specialization']) ?>)</option>
+                                        <option value="<?= e($doc['user_id']) ?>" <?= ($preselected_doctor == $doc['user_id']) ? 'selected' : '' ?>>
+                                            Dr. <?= e($doc['first_name'].' '.$doc['last_name']) ?> (<?= e($doc['specialization']) ?>)
+                                        </option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -308,6 +308,38 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
     <script>
         lucide.createIcons();
 
+        // -------------------------
+        // SWEETALERT2 LOGIC
+        // -------------------------
+        <?php if ($message): ?>
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: "<?= addslashes(e($message)) ?>",
+                confirmButtonColor: '#7c3aed'
+            });
+        <?php endif; ?>
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('booking') === 'success') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Appointment Confirmed!',
+                text: 'Your request has been sent for approval.',
+                confirmButtonColor: '#7c3aed',
+                confirmButtonText: 'View My Appointments'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = 'client_appointments.php';
+                } else {
+                    window.history.replaceState(null, null, window.location.pathname);
+                }
+            });
+        }
+
+        // -------------------------
+        // CALENDAR LOGIC
+        // -------------------------
         let currentDate = new Date();
         let selectedDate = null;
         let doctorWorkingDays = [];
@@ -326,6 +358,14 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
         const submitArea = document.getElementById('submitArea');
         const summary = document.getElementById('selectionSummary');
 
+        // Initial Load Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            if(doctorSelect.value) {
+                calendarContainer.classList.remove('opacity-50', 'pointer-events-none');
+                loadDoctorSchedule();
+            }
+        });
+
         doctorSelect.addEventListener('change', () => {
             if(doctorSelect.value) {
                 calendarContainer.classList.remove('opacity-50', 'pointer-events-none');
@@ -340,11 +380,6 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
 
             try {
                 const res = await fetch(`?action=get_monthly_status&doctor_id=${docId}&month=${month}&year=${year}`);
-                const contentType = res.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                   throw new Error("Server Error: Non-JSON response received.");
-                }
-
                 const data = await res.json();
                 
                 if(data.status === 'success') {
@@ -352,11 +387,11 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
                     doctorLeaves = data.leaves;
                     renderCalendar();
                 } else {
-                    alert('Error loading schedule: ' + data.message);
+                    Swal.fire({ icon: 'error', title: 'Schedule Error', text: data.message });
                 }
             } catch(e) { 
                 console.error(e);
-                alert('Failed to connect to the server. Please check your connection or try again.');
+                Swal.fire({ icon: 'error', title: 'Network Error', text: 'Failed to connect to the server.' });
             }
         }
 
@@ -385,14 +420,12 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
                 cell.className = 'day-cell';
                 cell.textContent = d;
 
-                // Logic: Cannot be past OR today
                 const isPastOrToday = dateObj <= today;
                 const isWorkingDay = doctorWorkingDays.includes(dayOfWeek);
                 const isLeave = checkLeave(dateString);
 
                 if(isPastOrToday) {
                     cell.classList.add('day-past');
-                    if(dateObj.getTime() === today.getTime()) cell.title = "Cannot book today";
                 } else if(isLeave) {
                     cell.classList.add('day-leave');
                     cell.title = "Doctor on Leave";
@@ -450,7 +483,6 @@ $doctors = $pdo->query("SELECT t.user_id, t.first_name, t.last_name, t.specializ
                 if(data.status === 'success') {
                     renderSlots(data.slots);
                 } else {
-                    // Display custom messages like "You already have an appointment"
                     slotsGrid.innerHTML = `<div class="col-span-2 text-red-500 text-center py-4 bg-red-50 rounded-lg border border-red-100 text-sm p-4">${data.message}</div>`;
                     slotsGrid.classList.remove('hidden');
                 }

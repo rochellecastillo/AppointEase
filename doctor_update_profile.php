@@ -76,7 +76,7 @@ try {
     // Get Health Profile
     $stmtHealth = $pdo->prepare("SELECT * FROM tbl_health_profile WHERE user_id = ?");
     $stmtHealth->execute([$patient_id]);
-    $hp = $stmtHealth->fetch(PDO::FETCH_ASSOC) ?: []; // Empty array if no record
+    $hp = $stmtHealth->fetch(PDO::FETCH_ASSOC) ?: []; 
 
 } catch (Exception $e) {
     die("Database Error");
@@ -92,8 +92,12 @@ $avatar = !empty($user['image']) ? 'uploads/' . e($user['image']) : 'https://ui-
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .error-border { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
+    </style>
 </head>
 <body class="text-slate-800">
     <div class="flex h-screen overflow-hidden">
@@ -114,13 +118,19 @@ $avatar = !empty($user['image']) ? 'uploads/' . e($user['image']) : 'https://ui-
                 </div>
 
                 <?php if ($msg): ?>
-                    <div class="mb-6 p-4 rounded-xl border flex items-center gap-2 <?= $msg_type == 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' ?>">
-                        <i data-lucide="<?= $msg_type == 'success' ? 'check-circle' : 'alert-circle' ?>" width="20"></i>
-                        <?= htmlspecialchars($msg) ?>
-                    </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            Swal.fire({
+                                icon: '<?= $msg_type ?>',
+                                title: '<?= $msg_type === "success" ? "Success" : "Error" ?>',
+                                text: '<?= htmlspecialchars($msg) ?>',
+                                confirmButtonColor: '#2563eb'
+                            });
+                        });
+                    </script>
                 <?php endif; ?>
 
-                <form method="POST" class="space-y-6">
+                <form method="POST" id="healthForm" class="space-y-6" novalidate>
                     
                     <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                         <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -140,13 +150,13 @@ $avatar = !empty($user['image']) ? 'uploads/' . e($user['image']) : 'https://ui-
                                     ?>
                                 </select>
                             </div>
-                            <div>
+                            <div class="form-group">
                                 <label class="block text-sm font-bold text-slate-700 mb-1">Height (cm)</label>
-                                <input type="number" step="0.01" name="height" value="<?= e($hp['height'] ?? '') ?>" class="w-full p-2 border border-slate-300 rounded-lg focus:border-blue-500 outline-none">
+                                <input type="number" step="0.01" name="height" id="height" value="<?= e($hp['height'] ?? '') ?>" class="w-full p-2 border border-slate-300 rounded-lg focus:border-blue-500 outline-none validation-field" placeholder="0.00">
                             </div>
-                            <div>
+                            <div class="form-group">
                                 <label class="block text-sm font-bold text-slate-700 mb-1">Weight (kg)</label>
-                                <input type="number" step="0.01" name="weight" value="<?= e($hp['weight'] ?? '') ?>" class="w-full p-2 border border-slate-300 rounded-lg focus:border-blue-500 outline-none">
+                                <input type="number" step="0.01" name="weight" id="weight" value="<?= e($hp['weight'] ?? '') ?>" class="w-full p-2 border border-slate-300 rounded-lg focus:border-blue-500 outline-none validation-field" placeholder="0.00">
                             </div>
                         </div>
                     </div>
@@ -188,9 +198,9 @@ $avatar = !empty($user['image']) ? 'uploads/' . e($user['image']) : 'https://ui-
                                 <label class="block text-sm font-bold text-slate-700 mb-1">Contact Name</label>
                                 <input type="text" name="emergency_contact_name" value="<?= e($hp['emergency_contact_name'] ?? '') ?>" class="w-full p-2 border border-slate-300 rounded-lg focus:border-red-500 outline-none">
                             </div>
-                            <div>
+                            <div class="form-group">
                                 <label class="block text-sm font-bold text-slate-700 mb-1">Contact Phone</label>
-                                <input type="text" name="emergency_contact_phone" value="<?= e($hp['emergency_contact_phone'] ?? '') ?>" class="w-full p-2 border border-slate-300 rounded-lg focus:border-red-500 outline-none">
+                                <input type="text" name="emergency_contact_phone" id="emergency_contact_phone" value="<?= e($hp['emergency_contact_phone'] ?? '') ?>" class="w-full p-2 border border-slate-300 rounded-lg focus:border-red-500 outline-none validation-field" placeholder="09XXXXXXXXX">
                             </div>
                         </div>
                     </div>
@@ -204,6 +214,54 @@ $avatar = !empty($user['image']) ? 'uploads/' . e($user['image']) : 'https://ui-
             </div>
         </main>
     </div>
-    <script>lucide.createIcons();</script>
+    <script>
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        // VALIDATION LOGIC
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('healthForm');
+
+            form.addEventListener('submit', function(e) {
+                let isValid = true;
+                let messages = [];
+
+                const height = document.getElementById('height');
+                const weight = document.getElementById('weight');
+                const phone = document.getElementById('emergency_contact_phone');
+
+                // Remove previous error styles
+                [height, weight, phone].forEach(el => el.classList.remove('error-border'));
+
+                // 1. Validate Numeric Range for Vitals
+                if (height.value && (height.value < 0 || height.value > 300)) {
+                    isValid = false;
+                    height.classList.add('error-border');
+                    messages.push("Height seems invalid (0-300 cm).");
+                }
+                if (weight.value && (weight.value < 0 || weight.value > 600)) {
+                    isValid = false;
+                    weight.classList.add('error-border');
+                    messages.push("Weight seems invalid.");
+                }
+
+                // 2. Validate Phone Format (if provided)
+                if (phone.value && !/^(09|\+639)\d{9}$/.test(phone.value)) {
+                    isValid = false;
+                    phone.classList.add('error-border');
+                    messages.push("Invalid Emergency Phone Number (use 09xxxxxxxxx).");
+                }
+
+                if (!isValid) {
+                    e.preventDefault();
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Check Inputs',
+                        html: messages.join('<br>'),
+                        confirmButtonColor: '#ef4444'
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html>

@@ -44,7 +44,6 @@ try {
 
 // --- FETCH DOCTORS ---
 try {
-    // REMOVED i.email from this query
     $sql = "SELECT u.user_id, u.status AS account_status,
                    i.first_name, i.last_name, i.specialization, i.contact, i.image
             FROM tbluser u
@@ -230,7 +229,7 @@ try {
                                         <i data-lucide="pencil" width="16"></i>
                                     </a>
                                     
-                                    <a href="doctor_schedule_manage.php?doctor_id=<?= $doc['user_id'] ?>" class="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-purple-600 hover:border-purple-200 transition shadow-sm" title="Manage Schedule">
+                                    <a href="schedule_manage.php?doctor_id=<?= $doc['user_id'] ?>" class="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-purple-600 hover:border-purple-200 transition shadow-sm" title="Manage Schedule">
                                         <i data-lucide="calendar" width="16"></i>
                                     </a>
 
