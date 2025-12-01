@@ -1,140 +1,5 @@
 <?php
-// schedule_manage.php - Visual Calendar Manager
-ob_start();
-
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-
-session_require_auth(['admin', 'doctor']);
-
-$user_id = session_get_user_id();
-$user_type = session_get_user_type();
-
-// --- 1. DETERMINE TARGET DOCTOR ---
-// Admin can see all, Doctor sees only themselves
-$doctors = [];
-if ($user_type === 'admin') {
-    $doctors = $pdo->query("SELECT u.user_id, i.first_name, i.last_name FROM tbluser u JOIN tblinfo i ON u.user_id = i.user_id WHERE u.user_type='doctor'")->fetchAll();
-    
-    // FIX: Check for 'doctor_id' (matches link) OR 'doctor_filter'
-    $target_doctor = $_GET['doctor_id'] ?? $_GET['doctor_filter'] ?? ($doctors[0]['user_id'] ?? '');
-} else {
-    $target_doctor = $user_id;
-}
-
-// --- API: AJAX HANDLER FOR CALENDAR DATA ---
-if (isset($_GET['action']) && $_GET['action'] === 'get_calendar_data') {
-    ob_end_clean();
-    header('Content-Type: application/json');
-
-    try {
-        // Use the ID passed to the API, or fall back to the context
-        $api_target = ($user_type === 'admin') ? ($_GET['target_id'] ?? $target_doctor) : $user_id;
-
-        if (!$api_target) throw new Exception("No doctor ID selected.");
-
-        // 1. Get Weekly Roster
-        $roster_stmt = $pdo->prepare("SELECT day, time, time2, max_appointment FROM tblschedule WHERE user_id = ?");
-        $roster_stmt->execute([$api_target]);
-        
-        // 2. Get Blocked Dates
-        $leaves_stmt = $pdo->prepare("SELECT id, date_start, date_end, reason FROM tblnoappointment WHERE doctor_id = ?");
-        $leaves_stmt->execute([$api_target]);
-        
-        echo json_encode([
-            'status' => 'success',
-            'roster' => $roster_stmt->fetchAll(PDO::FETCH_ASSOC),
-            'leaves' => $leaves_stmt->fetchAll(PDO::FETCH_ASSOC)
-        ]);
-
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-    }
-    exit;
-}
-
-ob_end_flush();
-
-// --- HANDLE FORM SUBMISSIONS ---
-$message = '';
-$msg_type = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $todayStr = date('Y-m-d');
-
-    // Admin might submit form for a different doctor than the one in URL? 
-    // Usually safest to use the hidden field ID or the context ID.
-    $form_doctor_id = ($user_type === 'admin') ? ($_POST['doctor_id'] ?? $target_doctor) : $user_id;
-
-    if ($form_doctor_id) {
-        // 1. BLOCK DATE
-        if (isset($_POST['block_date'])) {
-            $date = $_POST['date_start'];
-            $reason = $_POST['reason'] ?? 'Unavailable';
-            
-            if ($date < $todayStr) {
-                $message = "Error: You cannot block dates in the past.";
-                $msg_type = 'error';
-            } else {
-                try {
-                    $stmt = $pdo->prepare("INSERT INTO tblnoappointment (doctor_id, date_start, date_end, reason) VALUES (?, ?, ?, ?)");
-                    $stmt->execute([$form_doctor_id, $date, $date, $reason]);
-                    $message = "Date blocked successfully.";
-                    $msg_type = 'success';
-                } catch (Exception $e) { 
-                    $message = "DB Error: " . $e->getMessage(); 
-                    $msg_type = 'error'; 
-                }
-            }
-        }
-
-        // 2. UNBLOCK DATE
-        if (isset($_POST['unblock_date'])) {
-            $date = $_POST['date_to_unblock'];
-            try {
-                $stmt = $pdo->prepare("DELETE FROM tblnoappointment WHERE doctor_id = ? AND date_start = ?");
-                $stmt->execute([$form_doctor_id, $date]);
-                $message = "Date unblocked successfully.";
-                $msg_type = 'success';
-            } catch (Exception $e) {
-                $message = "DB Error: " . $e->getMessage();
-                $msg_type = 'error';
-            }
-        }
-
-        // 3. UPDATE WEEKLY ROSTER
-        if (isset($_POST['update_roster'])) {
-            $day = $_POST['day_index']; 
-            $time_start = $_POST['time_start'];
-            $time_end = $_POST['time_end'];
-            $max = $_POST['max_appointment'];
-            $is_active = isset($_POST['is_active']);
-
-            try {
-                // Clear existing roster for this day index first
-                $pdo->prepare("DELETE FROM tblschedule WHERE user_id = ? AND day = ?")->execute([$form_doctor_id, $day]);
-
-                if ($is_active && $time_start && $time_end) {
-                    $stmt = $pdo->prepare("INSERT INTO tblschedule (user_id, day, time, time2, max_appointment) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute([$form_doctor_id, $day, $time_start, $time_end, $max]);
-                    $message = "Weekly schedule updated.";
-                } else {
-                    $message = "Weekly schedule removed for this day.";
-                }
-                $msg_type = 'success';
-            } catch (Exception $e) { 
-                $message = "DB Error: " . $e->getMessage(); 
-                $msg_type = 'error'; 
-            }
-        }
-    } else {
-        $message = "Error: Doctor ID missing.";
-        $msg_type = 'error';
-    }
-}
+include __DIR__ . '/controllers/schedule_manage_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -298,8 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="text-xs font-bold text-gray-400 uppercase mb-1 block">Max Patients</label>
-                                        <input type="number" name="max_appointment" id="rosterMax" value="10" min="1" class="w-full p-2.5 border border-gray-300 rounded-lg focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
+                                        <label class="text-xs font-bold text-gray-400 uppercase mb-1 block">Max Patients (30 min slots)</label>
+                                        <input type="number" name="max_appointment" id="rosterMax" value="1" min="1" readonly 
+                                               class="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed text-gray-600">
                                     </div>
                                 </div>
 
@@ -318,14 +184,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         if (typeof lucide !== 'undefined') lucide.createIcons();
         
+        // --- CONSTANTS ---
+        const APPOINTMENT_DURATION_MINUTES = 30; // 30 minutes per patient slot
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
         let currentDate = new Date();
         let rosterData = [];
         let leaveData = [];
-        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
+        
         const doctorSelector = document.getElementById('doctorSelector');
         const monthDisplay = document.getElementById('monthDisplay');
         const grid = document.getElementById('calendarGrid');
+
+        // --- CORE CALCULATION LOGIC ---
+        /**
+         * Calculates the maximum number of appointments based on the time range.
+         * @param {string} startTime - Time string (HH:MM).
+         * @param {string} endTime - Time string (HH:MM).
+         * @returns {number} Max appointments count (min 1 if valid, 0 if invalid range).
+         */
+        function calculateMaxPatients(startTime, endTime) {
+            // Check for valid time formats (optional, but good practice)
+            if (!startTime || !endTime || startTime.length !== 5 || endTime.length !== 5) {
+                return 1;
+            }
+
+            // Convert times to minutes from midnight
+            const [startH, startM] = startTime.split(':').map(Number);
+            const [endH, endM] = endTime.split(':').map(Number);
+
+            const startTotalMinutes = startH * 60 + startM;
+            let endTotalMinutes = endH * 60 + endM;
+            
+            // Check for invalid range (End time must be after start time)
+            if (endTotalMinutes <= startTotalMinutes) {
+                return 0; 
+            }
+
+            const durationMinutes = endTotalMinutes - startTotalMinutes;
+            
+            // Calculate max appointments
+            const maxAppointments = Math.floor(durationMinutes / APPOINTMENT_DURATION_MINUTES);
+
+            return Math.max(1, maxAppointments); // Ensure a minimum of 1 if duration is valid
+        }
 
         // Init
         document.addEventListener('DOMContentLoaded', () => {
@@ -393,17 +295,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 const dayIndex = dateObj.getDay(); 
                 
-                // Check Logic
-                const isPast = dateObj < today;
-                const leave = leaveData.find(l => dateStr >= l.date_start && dateStr <= l.date_end);
-                
-                // Important: Match DB Logic. If DB uses 1=Monday...7=Sunday, we need to convert JS (0=Sunday)
-                // Assuming DB uses 1-7 (Mon-Sun) based on common PHP usage, 
-                // JS: 0=Sun, 1=Mon...6=Sat.
-                // Conversion: (0 -> 7), (1 -> 1)
+                // Important: Match DB Logic. (JS 0=Sun, 1=Mon...6=Sat) to (DB 1=Mon, 7=Sun)
                 let dbDay = (dayIndex === 0) ? 7 : dayIndex; 
                 const shift = rosterData.find(r => parseInt(r.day) === dbDay);
 
+                const isPast = dateObj < today;
+                const leave = leaveData.find(l => dateStr >= l.date_start && dateStr <= l.date_end);
+                
                 const cell = document.createElement('div');
                 cell.className = 'day-cell';
                 if (isPast) cell.classList.add('day-past');
@@ -459,23 +357,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Setup Roster Form
             const rosterInputs = document.getElementById('rosterInputs');
             const rosterActive = document.getElementById('rosterActive');
+            const rosterStart = document.getElementById('rosterStart');
+            const rosterEnd = document.getElementById('rosterEnd');
+            const rosterMax = document.getElementById('rosterMax');
+
+            // Function to calculate and update Max Patients based on Start/End times
+            const updateMaxPatients = () => {
+                const start = rosterStart.value;
+                const end = rosterEnd.value;
+                
+                // Only calculate if times are set
+                if (start && end) {
+                    rosterMax.value = calculateMaxPatients(start, end);
+                } else {
+                    rosterMax.value = 1; // Default to 1 if times are not set
+                }
+            }
+            // Attach event listeners to trigger calculation on time change
+            rosterStart.onchange = updateMaxPatients;
+            rosterEnd.onchange = updateMaxPatients;
+
             
             if (shift) {
                 rosterActive.checked = true;
-                document.getElementById('rosterStart').value = shift.time;
-                document.getElementById('rosterEnd').value = shift.time2;
-                document.getElementById('rosterMax').value = shift.max_appointment;
+                rosterStart.value = shift.time;
+                rosterEnd.value = shift.time2;
                 rosterInputs.classList.remove('opacity-50', 'pointer-events-none');
             } else {
                 rosterActive.checked = false;
                 rosterInputs.classList.add('opacity-50', 'pointer-events-none');
-                document.getElementById('rosterStart').value = '08:00';
-                document.getElementById('rosterEnd').value = '17:00';
+                // Set default times if inactive
+                rosterStart.value = '08:00';
+                rosterEnd.value = '17:00';
             }
 
+            // Always run initial calculation when modal opens (after setting times from shift/default)
+            updateMaxPatients();
+
+            // Toggle activation logic
             rosterActive.onclick = function() {
-                if(this.checked) rosterInputs.classList.remove('opacity-50', 'pointer-events-none');
-                else rosterInputs.classList.add('opacity-50', 'pointer-events-none');
+                if(this.checked) {
+                    rosterInputs.classList.remove('opacity-50', 'pointer-events-none');
+                    updateMaxPatients(); // Recalculate based on current/default times
+                }
+                else {
+                    rosterInputs.classList.add('opacity-50', 'pointer-events-none');
+                }
             };
 
             modal.classList.remove('hidden');

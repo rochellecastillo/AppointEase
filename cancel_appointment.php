@@ -1,57 +1,5 @@
 <?php
-// cancel.php - Cancel Appointment Confirmation
-ob_start();
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-
-session_require_auth(['user']);
-$user_id = session_get_user_id();
-
-// 1. Validate Input
-$appt_id = $_GET['id'] ?? null;
-if (!$appt_id) {
-    header('Location: client_home.php');
-    exit;
-}
-
-// 2. Fetch Appointment Details (Security: AND user_id = ?)
-// We confirm the appointment belongs to the logged-in user here
-$stmt = $pdo->prepare("
-    SELECT a.*, d.first_name, d.last_name, d.specialization 
-    FROM tblappointment a
-    JOIN tblinfo d ON a.doctor = d.user_id
-    WHERE a.id = ? AND a.user_id = ?
-    LIMIT 1
-");
-$stmt->execute([$appt_id, $user_id]);
-$appointment = $stmt->fetch(PDO::FETCH_ASSOC);
-
-// If appointment doesn't exist or doesn't belong to user
-if (!$appointment) {
-    // Log suspicious attempt if needed
-    header('Location: client_home.php?error=not_found');
-    exit;
-}
-
-// 3. Handle Cancellation Action
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_cancel'])) {
-    
-    // Update status to 0 (Cancelled)
-    $updateStmt = $pdo->prepare("UPDATE tblappointment SET status = 0 WHERE id = ?");
-    
-    if ($updateStmt->execute([$appt_id])) {
-        header('Location: client_home.php?cancel=success');
-        exit;
-    } else {
-        $error = "Failed to cancel appointment. Please try again.";
-    }
-}
-
-$doctor_name = "Dr. " . e($appointment['first_name']) . " " . e($appointment['last_name']);
-$date_formatted = date('l, F j, Y', strtotime($appointment['booking_date']));
-$time_formatted = date('h:i A', strtotime($appointment['booking_time']));
+include __DIR__ . '/cancel_appointment_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

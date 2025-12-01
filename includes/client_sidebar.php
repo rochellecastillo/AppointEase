@@ -75,3 +75,5 @@ $sidebarName = $currentUser['name'] ?? 'Patient';
         </div>
     </div>
 </aside>
+
+<?php include 'chat_widget_talkjs.php'; ?>

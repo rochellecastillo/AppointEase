@@ -1,109 +1,5 @@
 <?php
-// add_doctor.php - Step 1: Data Collection & OTP Generation
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-require_once 'iprog_sms.php'; // Include SMS helper
-
-// Enforce Admin Access
-session_require_auth(['admin']);
-
-$msg = '';
-$msg_type = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        // 1. Collect & Sanitize Inputs
-        $fname = trim($_POST['first_name'] ?? '');
-        $mname = trim($_POST['middle_name'] ?? ''); 
-        $lname = trim($_POST['last_name'] ?? '');
-        $username = trim($_POST['username'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $contact = trim($_POST['contact'] ?? '');
-        $spec = trim($_POST['specialization'] ?? '');
-        $gender = $_POST['gender'] ?? '';
-        $bdate = $_POST['bdate'] ?? '';
-        $address = trim($_POST['address'] ?? '');
-
-        // FIX: Define contact_norm immediately here so it is available for OTP later
-        $contact_norm = normalize_phone_ph($contact);
-
-        // 2. Validation
-        if (empty($fname) || empty($lname) || empty($username) || empty($email) || empty($password) || empty($spec) || empty($contact)) {
-            throw new Exception("Please fill in all required fields.");
-        }
-
-        // Check if Username already exists
-        $stmt = $pdo->prepare("SELECT user_id FROM tbluser WHERE user_name = ?");
-        $stmt->execute([$username]);
-        if ($stmt->rowCount() > 0) {
-            throw new Exception("Username is already taken.");
-        }
-
-        // Check if Contact already exists (Using the normalized variable)
-        $stmt = $pdo->prepare("SELECT id FROM tblinfo WHERE contact = ?");
-        $stmt->execute([$contact_norm]);
-        if ($stmt->rowCount() > 0) {
-            throw new Exception("Contact number already registered.");
-        }
-
-        // 3. Handle Image Upload
-        $image_filename = null;
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK && !empty($_FILES['image']['name'])) {
-            $target_dir = "uploads/";
-            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-            
-            $file_ext = strtolower(pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION));
-            $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-            
-            if (!in_array($file_ext, $allowed)) throw new Exception("Invalid file format (JPG, PNG, GIF only).");
-            
-            $new_filename = "doc_" . time() . "." . $file_ext;
-            if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_dir . $new_filename)) {
-                $image_filename = $new_filename;
-            } else {
-                throw new Exception("Failed to upload image.");
-            }
-        }
-
-        // 4. Store Session
-        // We use $contact_norm here, which is now definitely defined
-        $_SESSION['otp_action'] = 'add_doctor';
-        $_SESSION['otp_payload'] = [
-            'first_name' => $fname,
-            'middle_name' => $mname,
-            'last_name' => $lname,
-            'username' => $username,
-            'email' => $email,
-            'password' => $password,
-            'contact' => $contact_norm, // Ensure this uses the normalized variable
-            'specialization' => $spec,
-            'gender' => $gender,
-            'bdate' => $bdate,
-            'address' => $address,
-            'image' => $image_filename,
-            'otp_expires' => time() + (5 * 60)
-        ];
-
-        // 5. Send OTP
-        // Pass the normalized string, not null
-        $otp_res = iprog_send_otp($contact_norm);
-        
-        if ($otp_res['success']) {
-            header("Location: verify_otp.php");
-            exit();
-        } else {
-            if($image_filename && file_exists("uploads/$image_filename")) unlink("uploads/$image_filename");
-            throw new Exception("Failed to send OTP. Check number or network.");
-        }
-
-    } catch (Exception $e) {
-        $msg = $e->getMessage();
-        $msg_type = "error";
-    }
-}
+include __DIR__ . '/controllers/add_doctor_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -243,11 +139,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <p class="text-xs text-blue-600 mt-1">An OTP will be sent to this number.</p>
                                     <span class="error-msg"></span>
                                 </div>
-                                <div class="form-group">
-                                    <label class="block text-sm font-bold text-gray-700 mb-2">Email Address <span class="text-red-500">*</span></label>
-                                    <input type="email" name="email" id="email" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-purple-500 outline-none transition validation-field">
-                                    <span class="error-msg"></span>
-                                </div>
                             </div>
 
                             <div class="mb-8 form-group">
@@ -308,16 +199,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             const patterns = {
                 first_name: /^[a-zA-Z\s.-]{2,50}$/,
-                middle_name: /^[a-zA-Z\s.-]*$/, // Optional
+                middle_name: /^[a-zA-Z\s.-]*$/,
                 last_name: /^[a-zA-Z\s.-]{2,50}$/,
                 username: /^[a-zA-Z0-9_]{4,20}$/,
                 contact: /^(09|\+639)\d{9}$/,
-                email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                 address: /.+/,
                 specialization: /.+/,
                 bdate: /.+/,
                 gender: /.+/,
-                password: /^.{8,}$/ // Min 8 chars
+                password: /^.{8,}$/
             };
 
             const messages = {
@@ -326,7 +216,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 last_name: "Letters only, min 2 chars.",
                 username: "Alphanumeric, 4-20 chars.",
                 contact: "Invalid PH Number (e.g. 09123456789).",
-                email: "Invalid email format.",
                 address: "Required.",
                 specialization: "Required.",
                 bdate: "Required.",
@@ -364,26 +253,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Age Check
                 if (name === 'bdate' && val) {
-                    const age = new Date().getFullYear() - new Date(val).getFullYear();
-                    if (age < 20) return showError(input, "Doctor must be 20+ years old.");
+                    const birth = new Date(val);
+                    const age = new Date().getFullYear() - birth.getFullYear();
+                    if (age < 18) return showError(input, "Doctor must be at least 18 years old.");
                 }
-
                 return clearError(input);
             };
 
-            fields.forEach(f => {
-                f.addEventListener('input', () => validate(f));
-                f.addEventListener('blur', () => validate(f));
-            });
-
+            fields.forEach(f => f.addEventListener('blur', () => validate(f)));
             form.addEventListener('submit', (e) => {
                 let valid = true;
-                fields.forEach(f => { if(!validate(f)) valid = false; });
-
-                if (!valid) {
-                    e.preventDefault();
-                    Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please correct the highlighted errors.', confirmButtonColor: '#ef4444' });
-                }
+                fields.forEach(f => { if (!validate(f)) valid = false; });
+                if(!valid) { e.preventDefault(); Swal.fire({ icon:'error', title:'Invalid Input', text:'Please correct the errors before submitting.', confirmButtonColor:'#ef4444' }); }
             });
         });
     </script>
