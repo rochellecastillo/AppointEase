@@ -1,156 +1,41 @@
 <?php
-// login.php - Hospital-themed Login Page with Security
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-
-// Redirect if already logged in
-if (session_is_logged_in()) {
-    $redirect_map = [
-        'admin' => 'admin_home.php',
-        'doctor' => 'doctor_home.php',
-        'user' => 'client_home.php'
-    ];
-    $user_type = strtolower($_SESSION['user_type'] ?? 'user');
-    header('Location: ' . ($redirect_map[$user_type] ?? 'index.php'));
-    exit;
-}
-
-$error = '';
-$success = '';
-
-// Handle logout message
-if (isset($_GET['logout'])) {
-    $success = 'You have been successfully logged out.';
-}
-
-if (isset($_GET['session_expired'])) {
-    $error = 'Your session has expired. Please login again.';
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = trim($_POST['password'] ?? '');
-    $redirect = $_GET['redirect'] ?? '';
-    
-    // Rate limiting check
-    $rate_check = check_rate_limit('login_' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 5, 900);
-    
-    if (!$rate_check['allowed']) {
-        $minutes = ceil($rate_check['retry_after'] / 60);
-        $error = "Too many login attempts. Please try again in {$minutes} minutes.";
-        log_security_event('login_rate_limit_exceeded', ['username' => $username]);
-    } elseif (empty($username) || empty($password)) {
-        $error = 'Please enter both username and password';
-    } else {
-        try {
-            $stmt = $pdo->prepare("SELECT u.*, i.first_name, i.last_name 
-                                  FROM tbluser u 
-                                  LEFT JOIN tblinfo i ON u.user_id = i.user_id 
-                                  WHERE u.user_name = ? AND u.status = 1 
-                                  LIMIT 1");
-            $stmt->execute([$username]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($user) {
-                // Check if password is hashed (starts with $2y$ for bcrypt)
-                if (substr($user['password'], 0, 4) === '$2y$') {
-                    // New hashed password
-                    $password_valid = verify_password($password, $user['password']);
-                } else {
-                    // Legacy plain text password - validate and upgrade
-                    $password_valid = ($password === $user['password']);
-                    
-                    if ($password_valid) {
-                        // Upgrade to hashed password
-                        $new_hash = hash_password($password);
-                        $update_stmt = $pdo->prepare("UPDATE tbluser SET password = ? WHERE user_id = ?");
-                        $update_stmt->execute([$new_hash, $user['user_id']]);
-                        
-                        log_security_event('password_upgraded_to_hash', ['user_id' => $user['user_id']]);
-                    }
-                }
-                
-                if ($password_valid) {
-                    // Successful login
-                    session_init_user($user);
-                    
-                    log_security_event('login_success', [
-                        'user_id' => $user['user_id'],
-                        'user_type' => $user['user_type']
-                    ]);
-                    
-                    // Redirect based on user type
-                    if (!empty($redirect) && filter_var($redirect, FILTER_VALIDATE_URL) === false) {
-                        header('Location: ' . $redirect);
-                    } else {
-                        $redirect_map = [
-                            'admin' => 'admin_home.php',
-                            'doctor' => 'doctor_home.php',
-                            'user' => 'client_home.php'
-                        ];
-                        $user_type = strtolower($user['user_type']);
-                        header('Location: ' . ($redirect_map[$user_type] ?? 'index.php'));
-                    }
-                    exit;
-                } else {
-                    $error = 'Invalid username or password';
-                    log_security_event('login_failed', ['username' => $username, 'reason' => 'invalid_password']);
-                }
-            } else {
-                $error = 'Invalid username or password';
-                log_security_event('login_failed', ['username' => $username, 'reason' => 'user_not_found']);
-            }
-        } catch (Exception $e) {
-            $error = 'An error occurred. Please try again later.';
-            log_security_event('login_error', ['username' => $username, 'error' => $e->getMessage()]);
-        }
-    }
-}
+include __DIR__ . '/controllers/login_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Login - Untalan General Hospital</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-        }
-        .bg-pattern {
-            background-color: #ffffff;
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .bg-pattern { background-color: #ffffff; background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
         .input-group:focus-within label, .input-group:focus-within i { color: #2563eb; }
-        .input-field { transition: all 0.3s ease; }
-        .input-field:focus { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .input-field { transition: all 0.2s ease; }
+        .input-field:focus { box-shadow: 0 0 0 4px rgba(59,130,246,0.08); }
+        .field-error { color: #b91c1c; font-size: 0.875rem; margin-top: 0.375rem; display: none; }
+        .input-error { border-color: #fca5a5 !important; background-color: #fff7f7; }
+        .btn-spinner { width: 18px; height: 18px; margin-left: 8px; display: inline-block; vertical-align: middle; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 bg-pattern">
 
     <div class="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-2 min-h-[600px]">
-        
         <div class="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
             <div class="absolute top-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
             <div class="absolute bottom-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
-
             <div class="relative z-10">
                 <div class="flex items-center space-x-3 mb-8">
-                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <div class="p-2 bg-white/20 rounded-lg">
                         <i data-lucide="activity" class="w-8 h-8 text-white"></i>
                     </div>
                     <span class="text-xl font-bold tracking-wide">AppointEase</span>
                 </div>
-                
                 <h1 class="text-4xl font-bold leading-tight mb-6">Your Health, <br/>Our Priority.</h1>
                 <p class="text-blue-100 text-lg leading-relaxed mb-8">Experience seamless healthcare management with Untalan General Hospital's advanced scheduling system.</p>
-                
                 <div class="space-y-4">
                     <div class="flex items-center space-x-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
                         <div class="bg-white/20 p-2 rounded-full"><i data-lucide="clock" class="w-5 h-5"></i></div>
@@ -168,7 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             </div>
-
             <div class="relative z-10 mt-12 text-sm text-blue-200 flex justify-between items-center">
                 <span>© 2025 Untalan General Hospital</span>
                 <div class="flex space-x-4">
@@ -179,7 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="p-8 md:p-12 flex flex-col justify-center relative">
-            
             <div class="md:hidden mb-8 text-center">
                 <div class="inline-flex p-3 bg-blue-50 rounded-xl mb-4">
                     <i data-lucide="activity" class="w-8 h-8 text-blue-600"></i>
@@ -194,20 +77,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <?php if ($success): ?>
-                    <div class="flex items-center p-4 mb-6 text-sm text-green-700 bg-green-50 rounded-xl border border-green-100" role="alert">
+                    <div id="server-success" class="flex items-center p-4 mb-6 text-sm text-green-700 bg-green-50 rounded-xl border border-green-100" role="alert">
                         <i data-lucide="check-circle-2" class="w-5 h-5 mr-3 flex-shrink-0"></i>
                         <span><?= htmlspecialchars($success) ?></span>
                     </div>
                 <?php endif; ?>
 
                 <?php if ($error): ?>
-                    <div class="flex items-center p-4 mb-6 text-sm text-red-700 bg-red-50 rounded-xl border border-red-100" role="alert">
+                    <div id="server-error" class="flex items-center p-4 mb-6 text-sm text-red-700 bg-red-50 rounded-xl border border-red-100" role="alert">
                         <i data-lucide="alert-circle" class="w-5 h-5 mr-3 flex-shrink-0"></i>
                         <span><?= htmlspecialchars($error) ?></span>
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="" class="space-y-6">
+                <form id="loginForm" method="POST" action="" class="space-y-6" novalidate>
                     <div class="input-group">
                         <label for="username" class="block text-sm font-medium text-gray-700 mb-2 transition-colors">Username</label>
                         <div class="relative">
@@ -217,7 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="text" name="username" id="username" required autofocus
                                 value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
                                 class="input-field w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500"
-                                placeholder="Enter your username">
+                                placeholder="Enter your username" aria-describedby="usernameError" />
+                            <div id="usernameError" class="field-error">Please enter your username</div>
                         </div>
                     </div>
 
@@ -230,24 +114,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i data-lucide="lock" class="w-5 h-5 text-gray-400 transition-colors"></i>
                             </div>
-                            <input type="password" name="password" id="password" required
+                            <input type="password" name="password" id="password" required aria-describedby="passwordError"
                                 class="input-field w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500"
-                                placeholder="Enter your password">
-                            <button type="button" onclick="togglePassword()" 
+                                placeholder="Enter your password" />
+                            <button id="togglePasswordBtn" type="button" aria-pressed="false" title="Show password"
                                 class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors focus:outline-none">
-                                <i data-lucide="eye" id="eye-icon" class="w-5 h-5"></i>
+                                <i data-lucide="eye" id="eyeIcon" class="w-5 h-5"></i>
                             </button>
+                            <div id="passwordError" class="field-error">Please enter your password</div>
                         </div>
                     </div>
 
                     <div class="flex items-center">
-                        <input id="remember" name="remember" type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer">
+                        <input id="remember" name="remember" type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer" />
                         <label for="remember" class="ml-2 block text-sm text-gray-700 cursor-pointer">Remember me for 30 days</label>
                     </div>
 
-                    <button type="submit" 
-                        class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform active:scale-[0.98]">
-                        Sign in
+                    <button id="submitBtn" type="submit"
+                        class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform active:scale-[0.98]"
+                        aria-live="polite">
+                        <span id="btnText">Sign in</span>
+                        <svg id="btnSpinner" class="btn-spinner hidden" viewBox="0 0 50 50" aria-hidden="true">
+                            <circle cx="25" cy="25" r="20" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.4 31.4"></circle>
+                        </svg>
                         <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
                     </button>
                 </form>
@@ -261,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
 
-                <a href="signup.php" 
+                <a href="signup.php"
                    class="w-full flex justify-center items-center py-3.5 px-4 border-2 border-gray-200 rounded-xl shadow-sm text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all">
                     Create an account
                 </a>
@@ -269,46 +158,159 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 1. Initialize Lucide icons
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // lucide icons
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-            // 2. Password Toggle Logic
-            window.togglePassword = function() {
-                const passwordInput = document.getElementById('password');
-                const eyeIcon = document.getElementById('eye-icon');
-                
-                if (!passwordInput || !eyeIcon) return;
+    const loginForm = document.getElementById('loginForm');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const rememberCheckbox = document.getElementById('remember');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const btnText = document.getElementById('btnText');
+    const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+    const eyeIcon = document.getElementById('eyeIcon');
 
-                const isPassword = passwordInput.type === 'password';
-                
-                // Toggle Type
-                passwordInput.type = isPassword ? 'text' : 'password';
-                
-                // Toggle Icon Attribute
-                eyeIcon.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
-                
-                // Re-render icon
-                if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
-                }
-            };
+    const usernameError = document.getElementById('usernameError');
+    const passwordError = document.getElementById('passwordError');
 
-            // 3. Auto-dismiss alerts
-            const alerts = document.querySelectorAll('[role="alert"]');
-            if (alerts.length > 0) {
-                setTimeout(() => {
-                    alerts.forEach(alert => {
-                        alert.style.transition = 'opacity 0.5s ease-out';
-                        alert.style.opacity = '0';
-                        setTimeout(() => alert.remove(), 500);
-                    });
-                }, 5000);
-            }
+    const SERVER_ERROR = document.getElementById('server-error');
+    const SERVER_SUCCESS = document.getElementById('server-success');
+
+    // --- Remember me: restore saved username if exists ---
+    try {
+        const saved = JSON.parse(localStorage.getItem('appointease_remember') || 'null');
+        if (saved && saved.username) {
+            usernameInput.value = saved.username;
+            rememberCheckbox.checked = true;
+        }
+    } catch (e) {
+        // ignore localStorage parse errors
+    }
+
+    // Helper: show field error
+    function showFieldError(elInput, elError, message) {
+        if (elInput) elInput.classList.add('input-error');
+        if (elError) {
+            elError.textContent = message;
+            elError.style.display = 'block';
+        }
+    }
+
+    function clearFieldError(elInput, elError) {
+        if (elInput) elInput.classList.remove('input-error');
+        if (elError) {
+            elError.textContent = '';
+            elError.style.display = 'none';
+        }
+    }
+
+    // Clear field-specific errors on input
+    [usernameInput, passwordInput].forEach((el) => {
+        el.addEventListener('input', () => {
+            if (el === usernameInput) clearFieldError(usernameInput, usernameError);
+            if (el === passwordInput) clearFieldError(passwordInput, passwordError);
+            // Also hide server alert on typing
+            if (SERVER_ERROR) SERVER_ERROR.style.display = 'none';
+            if (SERVER_SUCCESS) SERVER_SUCCESS.style.display = 'none';
         });
-    </script>
+    });
+
+    // Toggle password visibility (accessible)
+    togglePasswordBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        const isHidden = passwordInput.type === 'password';
+        passwordInput.type = isHidden ? 'text' : 'password';
+        togglePasswordBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+        // update icon
+        eyeIcon.setAttribute('data-lucide', isHidden ? 'eye-off' : 'eye');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        // keep focus on password
+        passwordInput.focus();
+    });
+
+    // Prevent double submission & show spinner
+    let submitting = false;
+    loginForm.addEventListener('submit', function (e) {
+        // Client-side validation
+        let valid = true;
+        if (!usernameInput.value.trim()) {
+            showFieldError(usernameInput, usernameError, 'Please enter your username');
+            valid = false;
+        }
+        if (!passwordInput.value) {
+            showFieldError(passwordInput, passwordError, 'Please enter your password');
+            valid = false;
+        }
+
+        if (!valid) {
+            e.preventDefault();
+            return;
+        }
+
+        if (submitting) {
+            // Prevent double submit
+            e.preventDefault();
+            return;
+        }
+
+        // Save "remember me" into localStorage for 30 days (username only)
+        if (rememberCheckbox.checked) {
+            try {
+                const payload = {
+                    username: usernameInput.value.trim(),
+                    saved_at: Date.now()
+                };
+                localStorage.setItem('appointease_remember', JSON.stringify(payload));
+            } catch (err) { /* ignore storage errors */ }
+        } else {
+            try { localStorage.removeItem('appointease_remember'); } catch (err) {}
+        }
+
+        // Show spinner and disable inputs
+        submitting = true;
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+        btnSpinner.classList.remove('hidden');
+        btnText.textContent = 'Signing in...';
+        // allow form to submit normally (server-side will redirect)
+    });
+
+    // Auto-dismiss server alerts after a timeout (if present)
+    function fadeOut(el, ms = 600) {
+        if (!el) return;
+        el.style.transition = `opacity ${ms}ms ease`;
+        el.style.opacity = '0';
+        setTimeout(() => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        }, ms + 50);
+    }
+
+    if (SERVER_ERROR) {
+        setTimeout(() => fadeOut(SERVER_ERROR), 6000);
+    }
+    if (SERVER_SUCCESS) {
+        setTimeout(() => fadeOut(SERVER_SUCCESS), 5000);
+    }
+
+    // Keyboard: Enter on username -> focus password
+    usernameInput.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            passwordInput.focus();
+        }
+    });
+
+    // If the page loaded with server-side error, focus password if username present, otherwise username
+    if (<?= empty($error) ? 'true' : 'false' ?> === false) {
+        if (usernameInput.value.trim()) passwordInput.focus(); else usernameInput.focus();
+    }
+
+    // Re-render lucide when dynamic icons changed
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+});
+</script>
 </body>
 </html>

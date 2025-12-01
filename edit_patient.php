@@ -1,102 +1,5 @@
 <?php
-// edit_patient.php - Update Patient Profile with Validation
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-
-// Enforce Admin Access
-session_require_auth(['admin']);
-
-// 1. Get Patient ID
-$patient_id = $_GET['id'] ?? null;
-if (!$patient_id) {
-    header('Location: users_list.php');
-    exit;
-}
-
-// 2. Handle Form Submission
-$msg = '';
-$msg_type = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        // Collect inputs
-        $fname = trim($_POST['first_name']);
-        $mname = trim($_POST['middle_name']);
-        $lname = trim($_POST['last_name']);
-        $contact = trim($_POST['contact']);
-        $email = trim($_POST['email']);
-        $address = trim($_POST['address']);
-        $gender = $_POST['gender'];
-        $bdate = $_POST['bdate'];
-
-        // Handle Image Upload
-        $image_sql = "";
-        $params = [$fname, $mname, $lname, $contact, $email, $address, $gender, $bdate];
-
-        if (!empty($_FILES['image']['name'])) {
-            $target_dir = "uploads/";
-            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-            
-            $file_ext = strtolower(pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION));
-            $new_filename = "pat_" . $patient_id . "_" . time() . "." . $file_ext;
-            $target_file = $target_dir . $new_filename;
-            
-            $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-            if (in_array($file_ext, $allowed)) {
-                if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-                    $image_sql = ", image = ?";
-                    $params[] = $new_filename;
-                } else {
-                    throw new Exception("Failed to upload image.");
-                }
-            } else {
-                throw new Exception("Invalid file format.");
-            }
-        }
-
-        // Update Query
-        $sql = "UPDATE tblinfo SET 
-                first_name = ?, middle_name = ?, last_name = ?, 
-                contact = ?, email = ?, address = ?, gender = ?, bdate = ? 
-                $image_sql 
-                WHERE user_id = ?";
-        
-        $params[] = $patient_id;
-
-        $stmt = $pdo->prepare($sql);
-        if ($stmt->execute($params)) {
-            $msg = "Patient profile updated successfully.";
-            $msg_type = "success";
-        } else {
-            $msg = "Failed to update database.";
-            $msg_type = "error";
-        }
-
-    } catch (Exception $e) {
-        $msg = "Error: " . $e->getMessage();
-        $msg_type = "error";
-    }
-}
-
-// 3. Fetch Existing Data
-try {
-    $stmt = $pdo->prepare("SELECT * FROM tblinfo WHERE user_id = ?");
-    $stmt->execute([$patient_id]);
-    $patient = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$patient) {
-        die("Patient not found.");
-    }
-    
-    $stmtUser = $pdo->prepare("SELECT status FROM tbluser WHERE user_id = ?");
-    $stmtUser->execute([$patient_id]);
-    $userStatus = $stmtUser->fetchColumn();
-
-} catch (Exception $e) {
-    die("Database Error: " . $e->getMessage());
-}
+include __DIR__ . '/controllers/edit_patient_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -211,15 +114,10 @@ try {
 
                             <h3 class="text-lg font-bold text-gray-800 mb-6 pb-2 border-b border-gray-100 mt-8">Contact Details</h3>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="grid grid-cols-1 md:grid-cols-1 gap-6 mb-6">
                                 <div class="form-group">
                                     <label class="block text-sm font-bold text-gray-700 mb-2">Contact Number <span class="text-red-500">*</span></label>
                                     <input type="text" name="contact" id="contact" value="<?= htmlspecialchars($patient['contact']) ?>" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-purple-500 outline-none transition validation-field">
-                                    <span class="error-msg"></span>
-                                </div>
-                                <div class="form-group">
-                                    <label class="block text-sm font-bold text-gray-700 mb-2">Email Address <span class="text-red-500">*</span></label>
-                                    <input type="email" name="email" id="email" value="<?= htmlspecialchars($patient['email']) ?>" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-purple-500 outline-none transition validation-field">
                                     <span class="error-msg"></span>
                                 </div>
                             </div>
@@ -247,89 +145,57 @@ try {
     <script>
         if (typeof lucide !== 'undefined') lucide.createIcons();
 
-        // 1. Image Preview
         function previewImage(input) {
             const preview = document.getElementById('preview_img');
             const file = input.files[0];
-            
             if (file) {
-                if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                    Swal.fire({ icon: 'error', title: 'File Too Large', text: 'Max image size is 5MB.' });
-                    input.value = '';
-                    return;
-                }
+                if(file.size > 5*1024*1024){ Swal.fire({icon:'error', title:'File Too Large', text:'Max 5MB'}); input.value=''; return; }
                 const reader = new FileReader();
-                reader.onload = function (e) { preview.src = e.target.result; }
+                reader.onload = function(e){ preview.src = e.target.result; }
                 reader.readAsDataURL(file);
             }
         }
 
-        // 2. Form Validation
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', ()=>{
             const form = document.getElementById('editPatientForm');
             const fields = document.querySelectorAll('.validation-field');
 
             const patterns = {
-                first_name: /^[a-zA-Z\s.-]{2,50}$/,
-                last_name: /^[a-zA-Z\s.-]{2,50}$/,
-                contact: /^(09|\+639)\d{9}$/,
-                email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                address: /.+/
+                first_name:/^[a-zA-Z\s.-]{2,50}$/,
+                last_name:/^[a-zA-Z\s.-]{2,50}$/,
+                contact:/^(09|\+639)\d{9}$/,
+                address:/.+/
             };
 
             const messages = {
-                first_name: "Please enter a valid name (letters only).",
-                last_name: "Please enter a valid last name.",
-                contact: "Enter valid PH number (e.g., 09123456789).",
-                email: "Please enter a valid email.",
-                address: "Address is required.",
-                bdate: "Birth date is required.",
-                gender: "Please select a gender."
+                first_name:"Please enter a valid name.",
+                last_name:"Please enter a valid last name.",
+                contact:"Enter valid PH number.",
+                address:"Address is required.",
+                bdate:"Birth date required.",
+                gender:"Select gender."
             };
 
-            const validateField = (input) => {
-                const name = input.name;
-                const val = input.value.trim();
-                const group = input.closest('.form-group');
-                const errorSpan = group.querySelector('.error-msg');
-
-                let isValid = true;
-                let errorMsg = "";
-
-                if (val === "") {
-                    isValid = false;
-                    errorMsg = "This field is required.";
-                } else if (patterns[name] && !patterns[name].test(val)) {
-                    isValid = false;
-                    errorMsg = messages[name];
-                }
-
-                if (!isValid) {
-                    input.classList.add('error-border', 'bg-red-50');
-                    if(errorSpan) { errorSpan.textContent = errorMsg; errorSpan.classList.add('error-text'); }
-                } else {
-                    input.classList.remove('error-border', 'bg-red-50');
-                    if(errorSpan) { errorSpan.textContent = ''; }
-                }
-
+            const validateField = (input)=>{
+                const name=input.name,val=input.value.trim();
+                const group=input.closest('.form-group');
+                const errorSpan=group.querySelector('.error-msg');
+                let isValid=true,errorMsg="";
+                if(val===""){isValid=false; errorMsg="This field is required.";}
+                else if(patterns[name]&&!patterns[name].test(val)){isValid=false; errorMsg=messages[name];}
+                if(!isValid){input.classList.add('error-border','bg-red-50'); if(errorSpan){errorSpan.textContent=errorMsg; errorSpan.classList.add('error-text');}}
+                else{input.classList.remove('error-border','bg-red-50'); if(errorSpan){errorSpan.textContent='';}}
                 return isValid;
             };
 
-            fields.forEach(f => {
-                f.addEventListener('blur', () => validateField(f));
-                f.addEventListener('input', () => validateField(f));
-            });
+            fields.forEach(f=>{f.addEventListener('blur',()=>validateField(f)); f.addEventListener('input',()=>validateField(f));});
 
-            form.addEventListener('submit', (e) => {
-                let valid = true;
-                fields.forEach(f => {
-                    if(!validateField(f)) valid = false;
-                });
-
-                if (!valid) {
-                    e.preventDefault();
-                    Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please correct the errors in the form.', confirmButtonColor: '#ef4444' });
-                }
+            form.addEventListener('submit',(e)=>{
+                let valid=true;
+                fields.forEach(f=>{if(!validateField(f)) valid=false;});
+                const genderField=document.getElementById('gender');
+                if(genderField.value===""){valid=false; genderField.classList.add('error-border'); Swal.fire({icon:'warning', title:'Validation Error', text:messages.gender, confirmButtonColor:'#ef4444'});}
+                if(!valid){e.preventDefault(); Swal.fire({icon:'warning', title:'Validation Error', text:'Please correct errors.', confirmButtonColor:'#ef4444'});}
             });
         });
     </script>

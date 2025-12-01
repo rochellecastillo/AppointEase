@@ -1,182 +1,5 @@
 <?php
-// reschedule.php - Reschedule Existing Appointment
-ob_start(); // Start output buffering immediately
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-
-session_require_auth(['user']);
-$user_id = session_get_user_id();
-
-// =============================================================================
-// 1. API: HANDLE AJAX REQUESTS
-// =============================================================================
-if (isset($_GET['action'])) {
-    // Clear any previous output
-    if (ob_get_length()) ob_end_clean();
-    header('Content-Type: application/json');
-
-    try {
-        $appt_id = $_GET['id'] ?? '';
-        if (!$appt_id) throw new Exception("Missing Appointment ID");
-
-        // Fetch Doctor ID
-        $stmt = $pdo->prepare("SELECT doctor FROM tblappointment WHERE id = ? AND user_id = ?");
-        $stmt->execute([$appt_id, $user_id]);
-        $appt_check = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$appt_check) throw new Exception("Appointment not found.");
-        
-        $doctor_id = $appt_check['doctor'];
-
-        // --- Action: Get Monthly Status ---
-        if ($_GET['action'] === 'get_monthly_status') {
-            $month = $_GET['month'] ?? date('n');
-            $year = $_GET['year'] ?? date('Y');
-
-            // 1. Get Working Days
-            $stmt = $pdo->prepare("SELECT day FROM tblschedule WHERE user_id = ?");
-            $stmt->execute([$doctor_id]);
-            // Fetch as numbers
-            $working_days_raw = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            // FIX: Convert database '7' (Sunday) to JS '0' (Sunday) if necessary, 
-            // or keep as is and handle in JS. 
-            // For simplicity, we send what's in DB, but let's handle the mapping in PHP 'get_slots' logic mostly.
-            // If your DB uses 7 for Sunday, we need to make sure the JS knows that.
-            // Standard JS getDay(): 0=Sun, 1=Mon... 6=Sat.
-            // Your DB seems to use: 1=?, ..., 6=Sat, 7=Sun.
-            $working_days = array_map('intval', $working_days_raw);
-
-            // 2. Get Leave Dates (FIXED COLUMN NAMES based on your SQL)
-            $start_date = "$year-$month-01";
-            $end_date = date("Y-m-t", strtotime($start_date));
-            
-            // Corrected Query: Uses date_start and date_end
-            $stmt = $pdo->prepare("SELECT date_start, date_end, reason 
-                                   FROM tblnoappointment 
-                                   WHERE doctor_id = ? 
-                                   AND (
-                                       (date_start BETWEEN ? AND ?) OR 
-                                       (date_end BETWEEN ? AND ?)
-                                   )");
-            $stmt->execute([$doctor_id, $start_date, $end_date, $start_date, $end_date]);
-            $leaves = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            echo json_encode(['status' => 'success', 'working_days' => $working_days, 'leaves' => $leaves]);
-            exit;
-        }
-
-        // --- Action: Get Time Slots ---
-        if ($_GET['action'] === 'get_slots') {
-            $date = $_GET['date'] ?? '';
-            if (!$date) throw new Exception("Date required");
-
-            // FIX: Handle Day of Week (PHP 0=Sun, DB 7=Sun)
-            $day_of_week = date('w', strtotime($date)); 
-            if ($day_of_week == 0) {
-                $day_of_week = 7; // Map PHP's Sunday(0) to your DB's Sunday(7)
-            }
-
-            // Check Schedule
-            $stmt = $pdo->prepare("SELECT * FROM tblschedule WHERE user_id = ? AND day = ?");
-            $stmt->execute([$doctor_id, $day_of_week]);
-            $schedule = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$schedule) {
-                echo json_encode(['status' => 'off', 'message' => 'Doctor is not working on this day.']);
-                exit;
-            }
-
-            // Check Leave (FIXED COLUMN NAMES)
-            $check_leave = $pdo->prepare("SELECT * FROM tblnoappointment 
-                                          WHERE doctor_id = ? 
-                                          AND ? BETWEEN date_start AND date_end");
-            $check_leave->execute([$doctor_id, $date]);
-            
-            if ($check_leave->rowCount() > 0) {
-                echo json_encode(['status' => 'leave', 'message' => 'Doctor is on leave.']);
-                exit;
-            }
-
-            // Get Booked Slots
-            $booked_stmt = $pdo->prepare("SELECT booking_time FROM tblappointment WHERE doctor = ? AND booking_date = ? AND status != 0 AND id != ?");
-            $booked_stmt->execute([$doctor_id, $date, $appt_id]);
-            $booked_times = $booked_stmt->fetchAll(PDO::FETCH_COLUMN);
-
-            // Generate Slots
-            $start = strtotime($schedule['time']);
-            $end = strtotime($schedule['time2']);
-            $step = 30 * 60; // 30 minutes
-            $slots = [];
-
-            for ($i = $start; $i < $end; $i += $step) {
-                $timeVal = date('H:i:s', $i);
-                $timeDisp = date('h:i A', $i);
-                $slots[] = [
-                    'time' => $timeVal, 
-                    'display' => $timeDisp, 
-                    'available' => !in_array($timeVal, $booked_times)
-                ];
-            }
-
-            echo json_encode(['status' => 'success', 'slots' => $slots]);
-            exit;
-        }
-
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-        exit;
-    }
-}
-
-// =============================================================================
-// 2. PAGE LOGIC
-// =============================================================================
-
-$appt_id = $_GET['id'] ?? '';
-if (!$appt_id) {
-    header('Location: client_appointments.php');
-    exit;
-}
-
-$stmt = $pdo->prepare("SELECT a.*, i.first_name, i.last_name, i.specialization 
-                       FROM tblappointment a 
-                       JOIN tblinfo i ON a.doctor = i.user_id 
-                       WHERE a.id = ? AND a.user_id = ?");
-$stmt->execute([$appt_id, $user_id]);
-$appt = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$appt) die("Appointment not found or access denied.");
-
-$doctor_id = $appt['doctor'];
-$doctor_name = "Dr. " . htmlspecialchars($appt['first_name']) . " " . htmlspecialchars($appt['last_name']);
-
-// Handle Form Submission
-$message = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $new_date = $_POST['date'] ?? '';
-    $new_time = $_POST['time'] ?? '';
-
-    if ($new_date && $new_time) {
-        $check = $pdo->prepare("SELECT id FROM tblappointment WHERE doctor=? AND booking_date=? AND booking_time=? AND status!=0 AND id != ?");
-        $check->execute([$doctor_id, $new_date, $new_time, $appt_id]);
-        
-        if ($check->rowCount() == 0) {
-            $stmt = $pdo->prepare("UPDATE tblappointment SET booking_date = ?, booking_time = ?, status = 2 WHERE id = ?");
-            if ($stmt->execute([$new_date, $new_time, $appt_id])) {
-                header("Location: client_appointments.php?reschedule=success");
-                exit;
-            }
-        } else {
-            $message = "Sorry, that slot was just taken.";
-        }
-    } else {
-        $message = "Please select a new date and time.";
-    }
-}
+include __DIR__ . '/controllers/reschedule_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -186,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Reschedule - AppointEase</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -207,18 +31,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <main class="flex-1 overflow-auto">
             <div class="p-6 max-w-5xl mx-auto">
                 <div class="mb-8">
-                    <a href="client_home.php" class="inline-flex items-center text-sm text-gray-500 hover:text-purple-600 mb-4">
+                    <a href="client_appointments.php" class="inline-flex items-center text-sm text-gray-500 hover:text-purple-600 mb-4">
                         <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Cancel
                     </a>
                     <h1 class="text-3xl font-bold text-gray-900">Reschedule Appointment</h1>
                     <p class="text-gray-500">With <strong><?= $doctor_name ?></strong></p>
                 </div>
-
-                <?php if ($message): ?>
-                    <div class="mb-6 p-4 bg-red-100 text-red-700 rounded-xl flex items-center gap-2">
-                        <i data-lucide="alert-circle" width="20"></i> <?= htmlspecialchars($message) ?>
-                    </div>
-                <?php endif; ?>
 
                 <form method="POST" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div class="lg:col-span-2 space-y-6">
@@ -281,12 +99,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script>
         lucide.createIcons();
+
+        // 1. Handle Errors
+        <?php if ($message && $msg_type == 'error'): ?>
+            Swal.fire({ icon: 'error', title: 'Error', text: '<?= addslashes($message) ?>' });
+        <?php endif; ?>
+
+        // 2. Handle Success Redirect
+        <?php if (isset($success_redirect)): ?>
+            Swal.fire({
+                icon: 'success',
+                title: 'Rescheduled!',
+                text: '<?= addslashes($message) ?>',
+                confirmButtonColor: '#7c3aed',
+                confirmButtonText: 'OK'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '<?= $success_redirect ?>';
+                }
+            });
+        <?php endif; ?>
+
+        // --- CALENDAR LOGIC ---
         let currentDate = new Date();
         let selectedDate = null;
         let doctorWorkingDays = [];
         let doctorLeaves = [];
         
-        // DOM Elements
         const calendarDays = document.getElementById('calendarDays');
         const monthDisplay = document.getElementById('currentMonthYear');
         const selectedDateInput = document.getElementById('selectedDateInput');
@@ -333,20 +172,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             for(let d=1; d<=daysInMonth; d++) {
                 const dateObj = new Date(year, month, d);
                 const dateStr = [year, String(month+1).padStart(2,'0'), String(d).padStart(2,'0')].join('-');
-                const dayOfWeek = dateObj.getDay(); // 0=Sun, 1=Mon...
+                const dayOfWeek = dateObj.getDay();
                 
-                // FIX: Map JS day (0=Sun) to DB day (7=Sun) logic for checking "isWorkingDay"
-                // If your DB array contains 7 for Sunday, we must treat JS 0 as 7
-                const dbDay = (dayOfWeek === 0) ? 7 : dayOfWeek;
-
+                // Map JS 0 (Sun) to DB Logic if needed. Assuming API returns 0-6 correctly.
                 const cell = document.createElement('div');
                 cell.className = 'day-cell';
                 cell.textContent = d;
 
-                const isPast = dateObj < today;
+                const isPast = dateObj <= today;
                 const isLeave = checkLeave(dateStr);
-                // Check against the mapped day
-                const isWorkingDay = doctorWorkingDays.includes(dbDay);
+                
+                // Fix for potential 0 vs 7 mismatch in working_days array from DB
+                const isWorkingDay = doctorWorkingDays.includes(dayOfWeek) || (dayOfWeek === 0 && doctorWorkingDays.includes(7));
 
                 if(isPast) cell.classList.add('day-past');
                 else if(isLeave) { cell.classList.add('day-leave'); cell.title = "Leave"; }
@@ -418,10 +255,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 slotsGrid.appendChild(label);
             });
         }
-
-        document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
-            document.getElementById('sidebar').classList.toggle('-translate-x-full');
-        });
     </script>
 </body>
 </html>

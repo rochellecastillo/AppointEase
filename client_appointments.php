@@ -1,74 +1,5 @@
 <?php
-// client_appointments.php - Enhanced Appointment Management
-// ---------------------------------------------------------
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-
-// Enforce Client Authentication
-session_require_auth(['user']);
-
-$user_id = session_get_user_id();
-
-// Fetch all appointments
-try {
-    $stmt = $pdo->prepare("
-        SELECT a.id, a.booking_date, a.status,
-               d.first_name AS doc_first, d.last_name AS doc_last, 
-               d.specialization, d.contact AS doc_contact
-        FROM tblappointment a
-        LEFT JOIN tblinfo d ON d.user_id = a.doctor
-        WHERE a.user_id = ?
-        ORDER BY a.booking_date DESC
-    ");
-    $stmt->execute([$user_id]);
-    $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    die("Error: " . e($e->getMessage()));
-}
-
-// Categorize appointments
-$upcoming = [];
-$past = [];
-$cancelled = [];
-$today = date('Y-m-d');
-
-foreach ($appointments as $apt) {
-    $status = (int)$apt['status'];
-    $date = $apt['booking_date'];
-    
-    // Logic:
-    // 0 = Cancelled -> Cancelled Tab
-    // 3 = Completed -> Past Tab (regardless of date)
-    // Others (1, 2) -> If date >= today -> Upcoming, else -> Past
-    
-    if ($status === 0) {
-        $cancelled[] = $apt;
-    } elseif ($status === 3) {
-        $past[] = $apt; // Completed always goes to history
-    } elseif ($date >= $today) {
-        $upcoming[] = $apt;
-    } else {
-        $past[] = $apt;
-    }
-}
-
-// Helper to render status badges
-function getStatusBadge($statusInt) {
-    switch ($statusInt) {
-        case 1: // Confirmed
-            return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">Confirmed</span>';
-        case 2: // Pending
-            return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">Pending</span>';
-        case 3: // Completed
-            return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">Completed</span>';
-        case 0: // Cancelled
-            return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">Cancelled</span>';
-        default:
-            return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Unknown</span>';
-    }
-}
+include __DIR__ . '/controllers/client_appointment_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -88,11 +19,9 @@ function getStatusBadge($statusInt) {
 </head>
 <body class="text-gray-800">
     <div class="flex h-screen overflow-hidden">
-        
         <?php include 'includes/client_sidebar.php'; ?>
 
         <main class="flex-1 overflow-auto relative">
-            
             <div class="md:hidden p-4 flex items-center justify-between bg-white border-b sticky top-0 z-20">
                 <span class="font-bold text-lg text-purple-700">AppointEase</span>
                 <button id="mobileMenuBtn" class="p-2 bg-gray-100 rounded-lg"><i data-lucide="menu"></i></button>
@@ -129,7 +58,6 @@ function getStatusBadge($statusInt) {
                     </div>
 
                     <div class="p-6 bg-gray-50/50 rounded-b-2xl min-h-[400px]">
-                        
                         <div id="content-upcoming" class="tab-content space-y-4">
                             <?php if (empty($upcoming)): ?>
                                 <?php renderEmptyState('calendar-clock', 'No upcoming appointments', 'Time to schedule a checkup?'); ?>
@@ -163,12 +91,13 @@ function getStatusBadge($statusInt) {
     <?php
     // Helper Function to Render Cards
     function renderAppointmentCard($apt, $type) {
-        $doctor_name = trim(($apt['doc_last'] ?? '') . ', ' . ($apt['doc_first'] ?? ''));
+        $doctor_name = trim((($apt['doc_last'] ?? '') ? $apt['doc_last'] . ', ' : '') . ($apt['doc_first'] ?? ''));
         $dateObj = new DateTime($apt['booking_date']);
+        $timeLabel = !empty($apt['booking_time']) ? date('h:i A', strtotime($apt['booking_time'])) : 'TBD';
+        $doctor_user_id = $apt['doctor'] ?? '';
         ?>
         <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all duration-200 group">
             <div class="flex flex-col md:flex-row items-start md:items-center gap-5">
-                
                 <div class="flex-shrink-0 flex flex-col items-center justify-center w-16 h-16 bg-gray-50 rounded-xl border border-gray-200 group-hover:border-purple-200 group-hover:bg-purple-50 transition-colors">
                     <span class="text-xs font-bold text-gray-500 uppercase group-hover:text-purple-600"><?= $dateObj->format('M') ?></span>
                     <span class="text-xl font-bold text-gray-900 group-hover:text-purple-700"><?= $dateObj->format('d') ?></span>
@@ -185,7 +114,7 @@ function getStatusBadge($statusInt) {
                         <?= e($apt['specialization'] ?: 'General Practitioner') ?>
                     </p>
                     <div class="flex items-center gap-4 text-sm text-gray-500">
-                        <span class="flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i> <?= $dateObj->format('Y') ?></span>
+                        <span class="flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i> <?= e($dateObj->format('Y-m-d')) ?> <?= e($timeLabel) ?></span>
                         <?php if($apt['doc_contact']): ?>
                             <span class="flex items-center gap-1.5"><i data-lucide="phone" class="w-3 h-3"></i> <?= e($apt['doc_contact']) ?></span>
                         <?php endif; ?>
@@ -193,26 +122,25 @@ function getStatusBadge($statusInt) {
                 </div>
 
                 <div class="flex items-center gap-2 w-full md:w-auto mt-4 md:mt-0">
-                    
-                    <a href="appointment_details.php?id=<?= $apt['id'] ?>" class="flex-1 md:flex-none inline-flex justify-center items-center w-10 h-10 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-purple-600 transition" title="View Details">
+                    <a href="appointment_details.php?id=<?= (int)$apt['id'] ?>" class="flex-1 md:flex-none inline-flex justify-center items-center w-10 h-10 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-purple-600 transition" title="View Details">
                         <i data-lucide="eye" width="20"></i>
                     </a>
-                    
+
                     <?php if($type === 'upcoming' && (int)$apt['status'] !== 3): ?>
-                        <a href="reschedule.php?id=<?= $apt['id'] ?>" class="flex-1 md:flex-none px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition text-center">
+                        <a href="reschedule.php?id=<?= (int)$apt['id'] ?>" class="flex-1 md:flex-none px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition text-center">
                             Reschedule
                         </a>
-                        <a href="cancel_appointment.php?id=<?= $apt['id'] ?>" onclick="return confirm('Are you sure?')" class="flex-1 md:flex-none px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition text-center">
+                        <a href="cancel_appointment.php?id=<?= (int)$apt['id'] ?>" onclick="return confirm('Are you sure?')" class="flex-1 md:flex-none px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition text-center">
                             Cancel
                         </a>
                     <?php endif; ?>
 
                     <?php if((int)$apt['status'] === 3): ?>
-                        <a href="medical_records.php?search=<?= urlencode($doctor_name) ?>" class="flex-1 md:flex-none px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition text-center">
+                        <!-- Pass appointment_id and doctor id to medical_records.php so it can show the exact record -->
+                        <a href="medical_records.php?appointment_id=<?= (int)$apt['id'] ?>&doctor_id=<?= urlencode($doctor_user_id) ?>" class="flex-1 md:flex-none px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition text-center">
                             View Record
                         </a>
                     <?php endif; ?>
-
                 </div>
             </div>
         </div>
@@ -239,20 +167,17 @@ function getStatusBadge($statusInt) {
 
         // Tab Switching Logic
         function showTab(tabName) {
-            // Hide all content
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            
-            // Reset buttons
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('tab-active');
                 btn.classList.add('tab-inactive');
             });
-
-            // Activate selected
             document.getElementById('content-' + tabName).classList.remove('hidden');
             const activeBtn = document.getElementById('tab-' + tabName);
-            activeBtn.classList.remove('tab-inactive');
-            activeBtn.classList.add('tab-active');
+            if (activeBtn) {
+                activeBtn.classList.remove('tab-inactive');
+                activeBtn.classList.add('tab-active');
+            }
         }
 
         // Mobile Sidebar Toggle

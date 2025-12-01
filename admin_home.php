@@ -1,74 +1,5 @@
 <?php
-// admin_home.php - Enhanced Modern UI with Health Profiles & Activity Log
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-
-// Require admin authentication
-session_require_auth(['admin']);
-
-// Admin Info
-$user_id = session_get_user_id();
-$adminName = session_get_username();
-
-try {
-    // Fetch Admin Name
-    $stmt = $pdo->prepare("SELECT first_name, last_name FROM tblinfo WHERE user_id = ?");
-    $stmt->execute([$user_id]);
-    $info = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($info && !empty($info['first_name'])) {
-        $adminName = trim($info['first_name'] . ' ' . $info['last_name']);
-    }
-
-    // --- DASHBOARD METRICS ---
-
-    // 1. Pending Requests (Status 2) - Priority Action Items
-    $stmt = $pdo->query("SELECT COUNT(*) FROM tblappointment WHERE status = 2");
-    $pending_count = (int)$stmt->fetchColumn();
-
-    // 2. Today's Appointments (Status 1 - Confirmed)
-    $stmt = $pdo->query("SELECT COUNT(*) FROM tblappointment WHERE booking_date = CURDATE() AND status = 1");
-    $today_count = (int)$stmt->fetchColumn();
-
-    // 3. Active Doctors
-    $stmt = $pdo->query("SELECT COUNT(*) FROM tbluser WHERE user_type = 'doctor'");
-    $total_doctors = (int)$stmt->fetchColumn();
-
-    // 4. Registered Patients
-    $stmt = $pdo->query("SELECT COUNT(*) FROM tbluser WHERE user_type = 'user'");
-    $total_patients = (int)$stmt->fetchColumn();
-
-    // 5. Health Profiles (New Feature)
-    $stmt = $pdo->query("SELECT COUNT(*) FROM tbl_health_profile");
-    $total_profiles = (int)$stmt->fetchColumn();
-
-    // --- RECENT APPOINTMENTS ---
-    // Fetches latest 6 appointments with joined patient/doctor names
-    $sql = "SELECT a.id, a.booking_date, a.booking_time, a.status,
-                   p.first_name AS pfirst, p.last_name AS plast,
-                   d.first_name AS dfirst, d.last_name AS dlast
-            FROM tblappointment a
-            LEFT JOIN tblinfo p ON p.user_id = a.user_id
-            LEFT JOIN tblinfo d ON d.user_id = a.doctor
-            ORDER BY a.booking_date DESC, a.booking_time DESC
-            LIMIT 6";
-    $stmt = $pdo->query($sql);
-    $recentAppointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // --- RECENT ACTIVITY LOG ---
-    // Fetches latest 5 system activities
-    $activities = [];
-    try {
-        $stmt = $pdo->query("SELECT * FROM tblactivity_log ORDER BY created_at DESC LIMIT 5");
-        $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        // Fail silently if table doesn't exist yet
-    }
-
-} catch (Exception $ex) {
-    error_log($ex->getMessage()); // Logs to server error log
-    die('A system error occurred. Please contact support.');
-}
+include __DIR__ . '/controllers/admin_home_data.php';
 ?>
 <!doctype html>
 <html lang="en">
@@ -116,14 +47,13 @@ try {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-            
             <div class="stat-card bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group">
                 <div class="relative">
                     <div class="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mb-3">
                         <i data-lucide="loader-2" width="20"></i>
                     </div>
                     <p class="text-gray-500 text-xs font-bold uppercase tracking-wider">Pending</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= $pending_count ?></h3>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= (int)$pending_count ?></h3>
                     <a href="appointment_list_report.php?status=2" class="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity text-orange-400">
                         <i data-lucide="arrow-right" width="20"></i>
                     </a>
@@ -136,7 +66,7 @@ try {
                         <i data-lucide="calendar-clock" width="20"></i>
                     </div>
                     <p class="text-gray-500 text-xs font-bold uppercase tracking-wider">Today</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= $today_count ?></h3>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= (int)$today_count ?></h3>
                 </div>
             </div>
 
@@ -146,7 +76,7 @@ try {
                         <i data-lucide="stethoscope" width="20"></i>
                     </div>
                     <p class="text-gray-500 text-xs font-bold uppercase tracking-wider">Doctors</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= $total_doctors ?></h3>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= (int)$total_doctors ?></h3>
                 </div>
             </div>
 
@@ -156,7 +86,7 @@ try {
                         <i data-lucide="users" width="20"></i>
                     </div>
                     <p class="text-gray-500 text-xs font-bold uppercase tracking-wider">Patients</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= $total_patients ?></h3>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= (int)$total_patients ?></h3>
                 </div>
             </div>
 
@@ -166,7 +96,7 @@ try {
                         <i data-lucide="file-heart" width="20"></i>
                     </div>
                     <p class="text-gray-500 text-xs font-bold uppercase tracking-wider">Profiles</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= $total_profiles ?></h3>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1"><?= (int)$total_profiles ?></h3>
                 </div>
             </div>
         </div>
@@ -223,12 +153,11 @@ try {
                                 <?php if (empty($recentAppointments)): ?>
                                     <tr><td colspan="4" class="p-8 text-center text-gray-500">No recent appointments found.</td></tr>
                                 <?php else: ?>
-                                    <?php foreach ($recentAppointments as $apt): 
+                                    <?php foreach ($recentAppointments as $apt):
                                         $patient = trim(($apt['plast'] ?? '') . ', ' . ($apt['pfirst'] ?? ''));
                                         $doctor = trim(($apt['dlast'] ?? '') . ', ' . ($apt['dfirst'] ?? ''));
                                         $status = (int)$apt['status'];
                                         
-                                        // UPDATED STATUS BADGES
                                         $badge = match($status) {
                                             1 => '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><i data-lucide="check-circle" width="12"></i> Confirmed</span>',
                                             2 => '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700"><i data-lucide="clock" width="12"></i> Pending</span>',
@@ -244,8 +173,8 @@ try {
                                         </td>
                                         <td class="px-6 py-4 text-gray-600">Dr. <?= htmlspecialchars($doctor ?: 'TBD') ?></td>
                                         <td class="px-6 py-4 text-gray-600">
-                                            <?= date('M d, Y', strtotime($apt['booking_date'])) ?>
-                                            <span class="text-xs text-gray-400 ml-1"><?= $apt['booking_time'] ? date('h:i A', strtotime($apt['booking_time'])) : '' ?></span>
+                                            <?= htmlspecialchars(date('M d, Y', strtotime($apt['booking_date'] ?? ''))) ?>
+                                            <span class="text-xs text-gray-400 ml-1"><?= !empty($apt['booking_time']) ? htmlspecialchars(date('h:i A', strtotime($apt['booking_time']))) : '' ?></span>
                                         </td>
                                         <td class="px-6 py-4"><?= $badge ?></td>
                                     </tr>
@@ -276,7 +205,7 @@ try {
                                             <span class="text-gray-500"> - <?= htmlspecialchars($act['details'] ?? '') ?></span>
                                         </p>
                                         <p class="text-xs text-gray-400 mt-1">
-                                            <?= date('M d • h:i A', strtotime($act['created_at'])) ?>
+                                            <?= htmlspecialchars(date('M d • h:i A', strtotime($act['created_at'] ?? ''))) ?>
                                         </p>
                                     </div>
                                 </div>

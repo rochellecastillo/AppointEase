@@ -1,103 +1,5 @@
 <?php
-// edit_doctor.php - Update Doctor Profile
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-
-// Enforce Admin Access
-session_require_auth(['admin']);
-
-// 1. Get Doctor ID
-$doctor_id = $_GET['id'] ?? null;
-if (!$doctor_id) {
-    header('Location: doctors_info_report.php');
-    exit;
-}
-
-// 2. Handle Form Submission
-$msg = '';
-$msg_type = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        // Collect inputs
-        $fname = trim($_POST['first_name']);
-        $mname = trim($_POST['middle_name']); // Added Middle Name
-        $lname = trim($_POST['last_name']);
-        $spec = trim($_POST['specialization']);
-        $contact = trim($_POST['contact']);
-        $email = trim($_POST['email']);
-        $address = trim($_POST['address']);
-        $gender = $_POST['gender'];
-        $bdate = $_POST['bdate'];
-
-        // Handle Image Upload
-        $image_sql = "";
-        $params = [$fname, $mname, $lname, $spec, $contact, $email, $address, $gender, $bdate];
-
-        if (!empty($_FILES['image']['name'])) {
-            $target_dir = "uploads/";
-            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-            
-            $file_ext = strtolower(pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION));
-            $new_filename = "doc_" . $doctor_id . "_" . time() . "." . $file_ext;
-            $target_file = $target_dir . $new_filename;
-            
-            $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-            if (in_array($file_ext, $allowed)) {
-                if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-                    $image_sql = ", image = ?";
-                    $params[] = $new_filename; 
-                } else {
-                    throw new Exception("Failed to upload image.");
-                }
-            } else {
-                throw new Exception("Invalid file format. Only JPG, PNG & GIF allowed.");
-            }
-        }
-
-        // Update Query - Added middle_name
-        $sql = "UPDATE tblinfo SET 
-                first_name = ?, middle_name = ?, last_name = ?, specialization = ?, 
-                contact = ?, email = ?, address = ?, gender = ?, bdate = ? 
-                $image_sql 
-                WHERE user_id = ?";
-        
-        $params[] = $doctor_id;
-
-        $stmt = $pdo->prepare($sql);
-        if ($stmt->execute($params)) {
-            $msg = "Doctor profile updated successfully.";
-            $msg_type = "success";
-        } else {
-            $msg = "Failed to update database.";
-            $msg_type = "error";
-        }
-
-    } catch (Exception $e) {
-        $msg = "Error: " . $e->getMessage();
-        $msg_type = "error";
-    }
-}
-
-// 3. Fetch Existing Data
-try {
-    $stmt = $pdo->prepare("SELECT * FROM tblinfo WHERE user_id = ?");
-    $stmt->execute([$doctor_id]);
-    $doctor = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$doctor) {
-        die("Doctor not found.");
-    }
-    
-    $stmtUser = $pdo->prepare("SELECT status FROM tbluser WHERE user_id = ?");
-    $stmtUser->execute([$doctor_id]);
-    $userStatus = $stmtUser->fetchColumn();
-
-} catch (Exception $e) {
-    die("Database Error: " . $e->getMessage());
-}
+include __DIR__ . '/controllers/edit_doctor_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -238,11 +140,6 @@ try {
                                     <input type="text" name="contact" id="contact" value="<?= htmlspecialchars($doctor['contact']) ?>" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-purple-500 outline-none transition validation-field">
                                     <span class="error-msg"></span>
                                 </div>
-                                <div class="form-group">
-                                    <label class="block text-sm font-bold text-gray-700 mb-2">Email Address <span class="text-red-500">*</span></label>
-                                    <input type="email" name="email" id="email" value="<?= htmlspecialchars($doctor['email']) ?>" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-purple-500 outline-none transition validation-field">
-                                    <span class="error-msg"></span>
-                                </div>
                             </div>
 
                             <div class="mb-8 form-group">
@@ -268,7 +165,6 @@ try {
     <script>
         if (typeof lucide !== 'undefined') lucide.createIcons();
 
-        // 1. Image Preview Logic
         function previewImage(input) {
             const preview = document.getElementById('preview_img');
             const file = input.files[0];
@@ -276,49 +172,34 @@ try {
             if (file) {
                 const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
                 if (!allowedTypes.includes(file.type)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid File',
-                        text: 'Please select a valid image file (JPG, PNG, GIF).',
-                        confirmButtonColor: '#9333ea'
-                    });
-                    input.value = ''; // Reset input
+                    Swal.fire({ icon: 'error', title: 'Invalid File', text: 'Please select a valid image file (JPG, PNG, GIF).', confirmButtonColor: '#9333ea' });
+                    input.value = '';
                     return;
                 }
 
-                if (file.size > 5 * 1024 * 1024) { // 5MB Limit
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'File Too Large',
-                        text: 'Image size should not exceed 5MB.',
-                        confirmButtonColor: '#9333ea'
-                    });
-                    input.value = ''; 
+                if (file.size > 5 * 1024 * 1024) {
+                    Swal.fire({ icon: 'error', title: 'File Too Large', text: 'Image size should not exceed 5MB.', confirmButtonColor: '#9333ea' });
+                    input.value = '';
                     return;
                 }
 
                 const reader = new FileReader();
-                reader.onload = function (e) {
-                    preview.src = e.target.result;
-                }
+                reader.onload = function (e) { preview.src = e.target.result; }
                 reader.readAsDataURL(file);
             }
         }
 
-        // 2. Form Validation Logic
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('editDoctorForm');
             const fields = document.querySelectorAll('.validation-field');
 
-            // Regex patterns
             const patterns = {
                 first_name: /^[a-zA-Z\s.-]{2,50}$/, 
-                middle_name: /^[a-zA-Z\s.-]*$/, // Optional but must be letters if filled
+                middle_name: /^[a-zA-Z\s.-]*$/, 
                 last_name: /^[a-zA-Z\s.-]{2,50}$/,
-                contact: /^(09|\+639)\d{9}$/, 
-                email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                address: /.+/, 
-                specialization: /.+/ 
+                contact: /^(09|\+639)\d{9}$/,
+                address: /.+/,
+                specialization: /.+/
             };
 
             const errorMessages = {
@@ -326,99 +207,50 @@ try {
                 middle_name: "Please enter a valid middle name (letters only).",
                 last_name: "Please enter a valid last name.",
                 contact: "Enter valid PH number (e.g., 09123456789).",
-                email: "Please enter a valid email address.",
                 address: "Address is required.",
                 bdate: "Date of birth is required.",
                 gender: "Please select a gender.",
                 specialization: "Please select a specialization."
             };
 
-            // Helper to show error
             const showError = (input, message) => {
                 const group = input.closest('.form-group');
                 const errorSpan = group.querySelector('.error-msg');
-                
-                input.classList.add('error-border');
-                input.classList.add('bg-red-50');
-                if(errorSpan) {
-                    errorSpan.textContent = message;
-                    errorSpan.classList.add('error-text');
-                }
+                input.classList.add('error-border', 'bg-red-50');
+                if(errorSpan) { errorSpan.textContent = message; errorSpan.classList.add('error-text'); }
                 return false;
             };
 
-            // Helper to clear error
             const clearError = (input) => {
                 const group = input.closest('.form-group');
                 const errorSpan = group.querySelector('.error-msg');
-                
-                input.classList.remove('error-border');
-                input.classList.remove('bg-red-50');
-                if(errorSpan) {
-                    errorSpan.textContent = '';
-                }
+                input.classList.remove('error-border','bg-red-50');
+                if(errorSpan) { errorSpan.textContent = ''; }
                 return true;
             };
 
-            // Validate single field
             const validateField = (input) => {
                 const name = input.name;
                 const value = input.value.trim();
-
-                // Required check (Middle name is optional usually)
-                if (value === '' && name !== 'middle_name') {
-                    return showError(input, errorMessages[name] || "This field is required.");
-                }
-
-                // Pattern checks
-                if (patterns[name] && value !== '' && !patterns[name].test(value)) {
-                    return showError(input, errorMessages[name]);
-                }
-
-                // Date logic check (Must be at least 22 years old roughly for a doctor)
+                if (value === '' && name !== 'middle_name') return showError(input, errorMessages[name] || "This field is required.");
+                if (patterns[name] && value !== '' && !patterns[name].test(value)) return showError(input, errorMessages[name]);
                 if (name === 'bdate') {
-                    const dob = new Date(value);
-                    const today = new Date();
+                    const dob = new Date(value), today = new Date();
                     let age = today.getFullYear() - dob.getFullYear();
-                    const m = today.getMonth() - dob.getMonth();
-                    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-                        age--;
-                    }
-                    if (age < 20) {
-                        return showError(input, "Doctor must be at least 20 years old.");
-                    }
+                    if(today.getMonth()-dob.getMonth()<0||(today.getMonth()-dob.getMonth()===0 && today.getDate()<dob.getDate())) age--;
+                    if(age < 20) return showError(input, "Doctor must be at least 20 years old.");
                 }
-
                 return clearError(input);
             };
 
-            // Add input listeners for real-time feedback
-            fields.forEach(input => {
-                input.addEventListener('input', () => validateField(input));
-                input.addEventListener('blur', () => validateField(input));
-                input.addEventListener('change', () => validateField(input)); // For select elements
-            });
+            fields.forEach(input => input.addEventListener('input', () => validateField(input)));
 
-            // Form Submit Listener
-            form.addEventListener('submit', (e) => {
-                let isValid = true;
-                
-                // Validate all fields
-                fields.forEach(input => {
-                    if (!validateField(input)) {
-                        isValid = false;
-                    }
-                });
-
-                if (!isValid) {
-                    e.preventDefault(); // Stop submission
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Validation Error',
-                        text: 'Please correct the errors highlighted in the form.',
-                        confirmButtonColor: '#ef4444'
-                    });
-                }
+            form.addEventListener('submit', e => {
+                let valid = true;
+                fields.forEach(input => { if(!validateField(input)) valid=false; });
+                const genderField = document.getElementById('gender');
+                if(genderField.value === '') { showError(genderField,errorMessages['gender']); valid=false; } else clearError(genderField);
+                if(!valid) { e.preventDefault(); Swal.fire({icon:'error', title:'Fix Errors', text:'Please fix all errors before submitting.', confirmButtonColor:'#9333ea'}); }
             });
         });
     </script>

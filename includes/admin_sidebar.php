@@ -107,6 +107,8 @@ $sidebarRole = 'Administrator';
 
 <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
 
+<?php include 'chat_widget_talkjs.php'; ?>
+
 <script>
   const overlay = document.getElementById('sidebarOverlay');
   const toggleBtn = document.getElementById('toggleSidebar'); 

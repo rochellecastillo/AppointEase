@@ -1,60 +1,5 @@
 <?php
-// medical_records.php - Patient Health History & Reports
-require_once 'session_handler.php';
-require_once 'security_helper.php';
-require_once 'db.php';
-require_once 'logging_helper.php';
-
-session_require_auth(['user']);
-$user_id = session_get_user_id();
-
-// --- 1. FETCH RECORDS ---
-// Only fetch appointments that have a corresponding medical record entry
-$search = $_GET['search'] ?? '';
-$date_filter = $_GET['date'] ?? '';
-
-$sql = "SELECT 
-            a.id AS appointment_id, 
-            a.booking_date, 
-            a.booking_time, 
-            a.status,
-            d.first_name, 
-            d.last_name, 
-            d.specialization, 
-            mr.diagnosis, 
-            mr.prescription, 
-            mr.notes
-        FROM tblappointment a
-        JOIN tblinfo d ON a.doctor = d.user_id
-        JOIN tbl_medical_records mr ON a.id = mr.appointment_id
-        WHERE a.user_id = ? 
-        AND a.status = 3"; // Status 3 = Completed (Based on doctor_consultation.php logic)
-
-$params = [$user_id];
-
-if ($search) {
-    $sql .= " AND (d.first_name LIKE ? OR d.last_name LIKE ? OR d.specialization LIKE ? OR mr.diagnosis LIKE ?)";
-    $searchTerm = "%$search%";
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-}
-
-if ($date_filter) {
-    $sql .= " AND a.booking_date = ?";
-    $params[] = $date_filter;
-}
-
-$sql .= " ORDER BY a.booking_date DESC";
-
-try {
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    die("Error loading records: " . e($e->getMessage()));
-}
+include __DIR__ . '/controllers/medical_records_data.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -67,24 +12,18 @@ try {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* Print Styles */
         @media print {
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             body { background: white; }
             #recordModal { position: static; overflow: visible; height: auto; background: white; }
-            #recordModalContent { 
-                box-shadow: none; border: none; width: 100%; max-width: 100%; 
-                position: static; transform: none; margin: 0; 
-            }
+            #recordModalContent { box-shadow: none; border: none; width: 100%; max-width: 100%; position: static; transform: none; margin: 0; }
             .modal-backdrop { display: none; }
         }
-        .print-header { display: none; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div class="flex h-screen overflow-hidden">
-        
         <div class="no-print">
             <?php include 'includes/client_sidebar.php'; ?>
         </div>
@@ -96,7 +35,6 @@ try {
             </div>
 
             <div class="p-6 max-w-5xl mx-auto">
-                
                 <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 no-print">
                     <div>
                         <h1 class="text-3xl font-bold text-gray-900">Medical Records</h1>
@@ -115,7 +53,7 @@ try {
                             <input type="date" name="date" value="<?= e($date_filter) ?>" class="pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
                         </div>
                         <button type="submit" class="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition">Filter</button>
-                        <?php if($search || $date_filter): ?>
+                        <?php if($search || $date_filter || $doctor_id): ?>
                             <a href="medical_records.php" class="px-4 py-2.5 text-gray-500 font-medium hover:text-gray-700">Reset</a>
                         <?php endif; ?>
                     </form>
@@ -128,22 +66,21 @@ try {
                                 <i data-lucide="folder-open" class="w-8 h-8 text-gray-400"></i>
                             </div>
                             <h3 class="text-lg font-bold text-gray-700">No records found</h3>
-                            <p class="text-gray-500 text-sm">You haven't completed any appointments yet.</p>
+                            <p class="text-gray-500 text-sm">You haven't completed any appointments yet (or no records match your filters).</p>
                         </div>
                     <?php else: ?>
-                        <?php foreach($records as $rec): 
+                        <?php foreach($records as $rec):
                             $docName = "Dr. " . e($rec['first_name']) . " " . e($rec['last_name']);
                             $dateObj = new DateTime($rec['booking_date']);
-                            
-                            // Prepare JSON data for modal
-                            $modalData = htmlspecialchars(json_encode([
+                            $modalData = [
                                 'date' => $dateObj->format('F d, Y'),
                                 'doctor' => $docName,
-                                'spec' => e($rec['specialization']),
-                                'diagnosis' => e($rec['diagnosis']),
-                                'prescription' => e($rec['prescription'] ?? 'None'),
-                                'notes' => e($rec['notes'] ?? 'No additional notes.')
-                            ]), ENT_QUOTES, 'UTF-8');
+                                'spec' => $rec['specialization'] ?? '',
+                                'diagnosis' => $rec['diagnosis'] ?? 'N/A',
+                                'prescription' => $rec['prescription'] ?? 'None',
+                                'notes' => $rec['notes'] ?? 'No additional notes.'
+                            ];
+                            $modalJson = htmlspecialchars(json_encode($modalData), ENT_QUOTES, 'UTF-8');
                         ?>
                         <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group">
                             <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-green-500"></div>
@@ -175,7 +112,7 @@ try {
                                             <?= e($rec['diagnosis']) ?>
                                         </p>
                                     </div>
-                                    <button onclick='openRecordModal(<?= $modalData ?>)' class="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1 transition">
+                                    <button onclick='openRecordModal(<?= $modalJson ?>)' class="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1 transition">
                                         View Full Details & Print <i data-lucide="arrow-right" class="w-4 h-4"></i>
                                     </button>
                                 </div>
@@ -184,24 +121,20 @@ try {
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
-
             </div>
         </main>
     </div>
 
+    <!-- Modal (same as your previous) -->
     <div id="recordModal" class="fixed inset-0 z-50 hidden overflow-y-auto no-print" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity backdrop-blur-sm modal-backdrop" onclick="closeModal()"></div>
-        
         <div class="flex min-h-full items-center justify-center p-4">
             <div id="recordModalContent" class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:w-full sm:max-w-2xl">
-                
                 <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <i data-lucide="file-heart" class="text-purple-600"></i> Medical Record
                     </h3>
-                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 no-print">
-                        <i data-lucide="x" class="w-6 h-6"></i>
-                    </button>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 no-print"><i data-lucide="x" class="w-6 h-6"></i></button>
                 </div>
 
                 <div class="p-8" id="printableArea">
@@ -245,7 +178,7 @@ try {
                             <p class="text-gray-600 leading-relaxed whitespace-pre-wrap" id="mNotes">...</p>
                         </div>
                     </div>
-                    
+
                     <div class="mt-12 pt-4 border-t border-gray-200 text-center">
                         <p class="text-xs text-gray-400 italic">This is a computer-generated document. No signature is required.</p>
                     </div>
@@ -257,14 +190,13 @@ try {
                         <i data-lucide="printer" class="w-4 h-4"></i> Print Record
                     </button>
                 </div>
-
             </div>
         </div>
     </div>
 
     <script>
         lucide.createIcons();
-        
+
         const modal = document.getElementById('recordModal');
 
         function openRecordModal(data) {
@@ -274,7 +206,7 @@ try {
             document.getElementById('mDiagnosis').textContent = data.diagnosis;
             document.getElementById('mPrescription').textContent = data.prescription;
             document.getElementById('mNotes').textContent = data.notes;
-            
+
             modal.classList.remove('hidden');
         }
 

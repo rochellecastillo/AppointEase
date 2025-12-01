@@ -75,3 +75,5 @@ $sidebarDocName = $doc['last_name'] ?? $_SESSION['user_name'] ?? 'Doctor';
         </div>
     </div>
 </aside>
+
+<?php include 'chat_widget_talkjs.php'; ?>
