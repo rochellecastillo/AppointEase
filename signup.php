@@ -1,3 +1,4 @@
+<!-- FILE: signup.php -->
 <?php
 include __DIR__ . '/controllers/signup_data.php';
 ?>
@@ -19,7 +20,8 @@ include __DIR__ . '/controllers/signup_data.php';
 <body class="min-h-screen flex items-center justify-center p-4 bg-pattern">
 
     <div class="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-5 min-h-[800px]">
-        
+
+        <!-- LEFT SIDE -->
         <div class="hidden md:flex md:col-span-2 flex-col justify-between p-12 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
             <div class="absolute top-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
             <div class="absolute bottom-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
@@ -31,10 +33,10 @@ include __DIR__ . '/controllers/signup_data.php';
                     </div>
                     <span class="text-xl font-bold tracking-wide">AppointEase</span>
                 </div>
-                
+
                 <h1 class="text-3xl font-bold leading-tight mb-6">Join Our Community</h1>
                 <p class="text-blue-100 text-lg leading-relaxed mb-8">Create an account to manage your appointments and health records seamlessly.</p>
-                
+
                 <div class="space-y-6">
                     <div class="flex items-start space-x-4">
                         <div class="bg-white/20 p-2 rounded-full mt-1"><i data-lucide="check" class="w-4 h-4"></i></div>
@@ -46,14 +48,15 @@ include __DIR__ . '/controllers/signup_data.php';
                     </div>
                 </div>
             </div>
-            
+
             <div class="relative z-10 mt-auto pt-8 text-sm text-blue-200">
                 Already have an account? <a href="login.php" class="text-white font-semibold underline hover:text-blue-100">Sign in</a>
             </div>
         </div>
 
+        <!-- RIGHT SIDE -->
         <div class="md:col-span-3 p-8 md:p-12 overflow-y-auto h-full">
-            
+
             <div class="md:hidden mb-8 text-center">
                 <h2 class="text-2xl font-bold text-gray-800">AppointEase</h2>
                 <p class="text-gray-500">Patient Registration</p>
@@ -95,34 +98,41 @@ include __DIR__ . '/controllers/signup_data.php';
                 <form method="POST" action="" class="space-y-8">
                     <input type="hidden" name="action" value="start_signup">
 
+                    <!-- PERSONAL INFO -->
                     <section>
                         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center pb-2 border-b border-gray-200">
                             <i data-lucide="user" class="w-5 h-5 mr-2 text-blue-600"></i> Personal Information
                         </h3>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                                 <input type="text" name="first_name" required value="<?= htmlspecialchars($prefill['first_name'] ?? '') ?>"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
-                            <div class="md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
                                 <input type="text" name="last_name" required value="<?= htmlspecialchars($prefill['last_name'] ?? '') ?>"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
+
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name (Optional)</label>
                                 <input type="text" name="middle_name" value="<?= htmlspecialchars($prefill['middle_name'] ?? '') ?>"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
+
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Birth Date <span class="text-red-500">*</span></label>
-                                <input type="date" name="bdate" required value="<?= htmlspecialchars($prefill['bdate'] ?? '') ?>" max="<?= date('Y-m-d', strtotime('-13 years')) ?>"
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Birth Date *</label>
+                                <input type="date" name="bdate" required value="<?= htmlspecialchars($prefill['bdate'] ?? '') ?>"
+                                    max="<?= date('Y-m-d', strtotime('-13 years')) ?>"
                                     class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
                             </div>
+
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Gender <span class="text-red-500">*</span></label>
-                                <select name="gender" required class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
+                                <select name="gender" required class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500">
                                     <option value="">Select Gender</option>
                                     <option value="Male" <?= ($prefill['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
                                     <option value="Female" <?= ($prefill['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
@@ -132,105 +142,96 @@ include __DIR__ . '/controllers/signup_data.php';
                         </div>
                     </section>
 
+                    <!-- CONTACT -->
                     <section>
                         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center pb-2 border-b border-gray-200">
                             <i data-lucide="map-pin" class="w-5 h-5 mr-2 text-blue-600"></i> Contact Details
                         </h3>
+
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Complete Address <span class="text-red-500">*</span></label>
-                                <input type="text" name="address" required value="<?= htmlspecialchars($prefill['address'] ?? '') ?>" placeholder="Unit, Street, Barangay, City, Province"
-                                    class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Complete Address *</label>
+                                <input type="text" name="address" required value="<?= htmlspecialchars($prefill['address'] ?? '') ?>"
+                                    class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg">
                             </div>
+
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Mobile Number <span class="text-red-500">*</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Mobile Number *</label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <i data-lucide="smartphone" class="w-5 h-5 text-gray-400"></i>
                                     </div>
-                                    <input type="tel" name="contact" required value="<?= htmlspecialchars($prefill['contact'] ?? '') ?>" placeholder="09171234567" pattern="^(09|\+639)[0-9]{9}$"
-                                        class="input-field w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                                    <input type="tel" name="contact" required value="<?= htmlspecialchars($prefill['contact'] ?? '') ?>"
+                                        placeholder="09171234567" pattern="^(09|\+639)[0-9]{9}$"
+                                        class="input-field w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg">
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">We will send an OTP to verify this number.</p>
                             </div>
                         </div>
                     </section>
 
+                    <!-- SECURITY -->
                     <section>
                         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center pb-2 border-b border-gray-200">
                             <i data-lucide="shield" class="w-5 h-5 mr-2 text-blue-600"></i> Account Security
                         </h3>
+
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
-                                <input type="text" name="user_name" required value="<?= htmlspecialchars($prefill['user_name'] ?? '') ?>" minlength="4" maxlength="30"
-                                    class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                                <input type="text" name="user_name" required value="<?= htmlspecialchars($prefill['user_name'] ?? '') ?>"
+                                    minlength="4" maxlength="30"
+                                    class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg">
                             </div>
-                            
+
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Password <span class="text-red-500">*</span></label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                                     <div class="relative">
                                         <input type="password" name="password" id="password" required minlength="8"
-                                            class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none pr-10">
-                                        <button type="button" onclick="togglePassword('password')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                            class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg pr-10">
+                                        <button type="button" onclick="togglePassword('password')" class="absolute inset-y-0 right-0 pr-3">
                                             <i data-lucide="eye" id="eye-password" class="w-5 h-5"></i>
                                         </button>
                                     </div>
                                 </div>
+
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password <span class="text-red-500">*</span></label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
                                     <div class="relative">
                                         <input type="password" name="confirm_password" id="confirm_password" required
-                                            class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none pr-10">
-                                        <button type="button" onclick="togglePassword('confirm_password')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                            class="input-field w-full px-4 py-2 border border-gray-300 rounded-lg pr-10">
+                                        <button type="button" onclick="togglePassword('confirm_password')" class="absolute inset-y-0 right-0 pr-3">
                                             <i data-lucide="eye" id="eye-confirm_password" class="w-5 h-5"></i>
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                            <p class="text-xs text-gray-500">Password must be at least 8 characters, include an uppercase letter, a lowercase letter, and a number.</p>
                         </div>
+
                     </section>
 
                     <div class="pt-4">
                         <label class="flex items-start">
-                            <input type="checkbox" name="terms_accepted" required class="mt-1 mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                            <span class="text-sm text-gray-600">
-                                I agree to the <a href="terms.php" target="_blank" class="text-blue-600 hover:underline">Terms and Conditions</a> 
-                                and <a href="privacy.php" target="_blank" class="text-blue-600 hover:underline">Privacy Policy</a>.
-                            </span>
+                            <input type="checkbox" name="terms_accepted" required class="mt-1 mr-3 h-4 w-4 text-blue-600">
+                            <span class="text-sm text-gray-600">I agree to the <a href="terms.php" class="text-blue-600">Terms</a> and <a href="privacy.php" class="text-blue-600">Privacy Policy</a>.</span>
                         </label>
                     </div>
 
                     <div class="pt-4">
-                        <button type="submit" 
-                            class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform active:scale-[0.98]">
+                        <button type="submit" class="w-full flex justify-center items-center py-3.5 px-4 rounded-xl text-white bg-blue-600 hover:bg-blue-700">
                             Sign Up & Send OTP
                             <i data-lucide="arrow-right" class="ml-2 w-4 h-4"></i>
                         </button>
                     </div>
+
                 </form>
             </div>
         </div>
     </div>
 
-    <script>
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        
-        function togglePassword(fieldId) {
-            const field = document.getElementById(fieldId);
-            const icon = document.getElementById('eye-' + fieldId);
-            
-            if (field.type === 'password') {
-                field.type = 'text';
-                icon.setAttribute('data-lucide', 'eye-off');
-            } else {
-                field.type = 'password';
-                icon.setAttribute('data-lucide', 'eye');
-            }
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-    </script>
+<!-- EXTERNAL JS -->
+<script src="js/signup.js" defer></script>
+
 </body>
 </html>
