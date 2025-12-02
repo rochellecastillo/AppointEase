@@ -25,7 +25,7 @@ include __DIR__ . '/controllers/reschedule_data.php';
         .slot-radio:checked + div { background-color: #7c3aed; color: white; border-color: #7c3aed; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-50 text-gray-800" data-appt-id="<?= htmlspecialchars($appt_id) ?>">
     <div class="flex h-screen overflow-hidden">
         <?php include 'includes/client_sidebar.php'; ?>
         <main class="flex-1 overflow-auto">
@@ -35,7 +35,7 @@ include __DIR__ . '/controllers/reschedule_data.php';
                         <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Cancel
                     </a>
                     <h1 class="text-3xl font-bold text-gray-900">Reschedule Appointment</h1>
-                    <p class="text-gray-500">With <strong><?= $doctor_name ?></strong></p>
+                    <p class="text-gray-500">With <strong><?= htmlspecialchars($doctor_name) ?></strong></p>
                 </div>
 
                 <form method="POST" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -98,8 +98,6 @@ include __DIR__ . '/controllers/reschedule_data.php';
     </div>
 
     <script>
-        lucide.createIcons();
-
         // 1. Handle Errors
         <?php if ($message && $msg_type == 'error'): ?>
             Swal.fire({ icon: 'error', title: 'Error', text: '<?= addslashes($message) ?>' });
@@ -119,142 +117,8 @@ include __DIR__ . '/controllers/reschedule_data.php';
                 }
             });
         <?php endif; ?>
-
-        // --- CALENDAR LOGIC ---
-        let currentDate = new Date();
-        let selectedDate = null;
-        let doctorWorkingDays = [];
-        let doctorLeaves = [];
-        
-        const calendarDays = document.getElementById('calendarDays');
-        const monthDisplay = document.getElementById('currentMonthYear');
-        const selectedDateInput = document.getElementById('selectedDateInput');
-        const selectedTimeInput = document.getElementById('selectedTimeInput');
-        const slotsGrid = document.getElementById('slotsGrid');
-        const slotEmptyState = document.getElementById('slotEmptyState');
-        const slotLoading = document.getElementById('slotLoading');
-        const submitArea = document.getElementById('submitArea');
-        const summary = document.getElementById('selectionSummary');
-
-        document.addEventListener('DOMContentLoaded', loadDoctorSchedule);
-
-        async function loadDoctorSchedule() {
-            const month = currentDate.getMonth() + 1;
-            const year = currentDate.getFullYear();
-            try {
-                const res = await fetch(`?action=get_monthly_status&month=${month}&year=${year}&id=<?= $appt_id ?>`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if(data.status === 'success') {
-                    doctorWorkingDays = data.working_days.map(Number);
-                    doctorLeaves = data.leaves;
-                    renderCalendar();
-                }
-            } catch(e) { 
-                console.error(e); 
-                calendarDays.innerHTML = `<p class="col-span-7 text-center text-red-500 py-4">Error loading schedule.</p>`;
-            }
-        }
-
-        function renderCalendar() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            monthDisplay.textContent = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentDate);
-            calendarDays.innerHTML = '';
-            
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const today = new Date();
-            today.setHours(0,0,0,0);
-
-            for(let i=0; i<firstDay; i++) calendarDays.appendChild(document.createElement('div'));
-
-            for(let d=1; d<=daysInMonth; d++) {
-                const dateObj = new Date(year, month, d);
-                const dateStr = [year, String(month+1).padStart(2,'0'), String(d).padStart(2,'0')].join('-');
-                const dayOfWeek = dateObj.getDay();
-                
-                // Map JS 0 (Sun) to DB Logic if needed. Assuming API returns 0-6 correctly.
-                const cell = document.createElement('div');
-                cell.className = 'day-cell';
-                cell.textContent = d;
-
-                const isPast = dateObj <= today;
-                const isLeave = checkLeave(dateStr);
-                
-                // Fix for potential 0 vs 7 mismatch in working_days array from DB
-                const isWorkingDay = doctorWorkingDays.includes(dayOfWeek) || (dayOfWeek === 0 && doctorWorkingDays.includes(7));
-
-                if(isPast) cell.classList.add('day-past');
-                else if(isLeave) { cell.classList.add('day-leave'); cell.title = "Leave"; }
-                else if(!isWorkingDay) { cell.classList.add('day-off'); cell.title = "Off"; }
-                else {
-                    cell.classList.add('day-available');
-                    cell.onclick = () => selectDate(cell, dateStr);
-                    if(selectedDate === dateStr) cell.classList.add('day-selected');
-                }
-                calendarDays.appendChild(cell);
-            }
-        }
-
-        function checkLeave(dateStr) {
-            return doctorLeaves.some(leave => dateStr >= leave.date_start && dateStr <= leave.date_end);
-        }
-
-        document.getElementById('prevMonthBtn').onclick = () => { currentDate.setMonth(currentDate.getMonth()-1); loadDoctorSchedule(); };
-        document.getElementById('nextMonthBtn').onclick = () => { currentDate.setMonth(currentDate.getMonth()+1); loadDoctorSchedule(); };
-        document.getElementById('todayBtn').onclick = () => { currentDate = new Date(); loadDoctorSchedule(); };
-
-        function selectDate(cell, dateStr) {
-            document.querySelectorAll('.day-selected').forEach(el => el.classList.remove('day-selected'));
-            cell.classList.add('day-selected');
-            selectedDate = dateStr;
-            selectedDateInput.value = dateStr;
-            loadSlots(dateStr);
-        }
-
-        async function loadSlots(dateStr) {
-            slotEmptyState.classList.add('hidden');
-            slotsGrid.classList.add('hidden');
-            submitArea.classList.add('hidden');
-            slotLoading.classList.remove('hidden');
-            try {
-                const res = await fetch(`?action=get_slots&date=${dateStr}&id=<?= $appt_id ?>`);
-                const data = await res.json();
-                slotLoading.classList.add('hidden');
-                if(data.status === 'success') renderSlots(data.slots);
-                else {
-                    slotsGrid.innerHTML = `<div class="col-span-2 text-red-500 text-center py-4">${data.message}</div>`;
-                    slotsGrid.classList.remove('hidden');
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        function renderSlots(slots) {
-            slotsGrid.innerHTML = '';
-            slotsGrid.classList.remove('hidden');
-            if(slots.length === 0) {
-                slotsGrid.innerHTML = `<div class="col-span-2 text-gray-500 text-center py-4">No slots available.</div>`;
-                return;
-            }
-            slots.forEach(slot => {
-                const label = document.createElement('label');
-                label.className = 'cursor-pointer block';
-                if(slot.available) {
-                    label.innerHTML = `
-                        <input type="radio" name="time_slot" value="${slot.time}" class="slot-radio sr-only">
-                        <div class="py-2 px-4 rounded-lg border border-gray-200 text-center text-sm hover:border-purple-500 hover:text-purple-600 transition">${slot.display}</div>`;
-                    label.addEventListener('change', () => {
-                        selectedTimeInput.value = slot.time;
-                        submitArea.classList.remove('hidden');
-                        summary.textContent = `Selected: ${slot.display} on ${selectedDate}`;
-                    });
-                } else {
-                    label.innerHTML = `<div class="py-2 px-4 rounded-lg border border-gray-100 bg-gray-50 text-gray-400 text-center text-sm line-through cursor-not-allowed">${slot.display}</div>`;
-                }
-                slotsGrid.appendChild(label);
-            });
-        }
     </script>
+
+    <script src="js/reschedule.js"></script>
 </body>
 </html>

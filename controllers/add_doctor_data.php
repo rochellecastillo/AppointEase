@@ -42,11 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Check if Contact already exists
-        // $stmt = $pdo->prepare("SELECT id FROM tblinfo WHERE contact = ?");
-        // $stmt->execute([$contact_norm]);
-        // if ($stmt->rowCount() > 0) {
-        //     throw new Exception("Contact number already registered.");
-        // }
+        $stmt = $pdo->prepare("SELECT id FROM tblinfo WHERE contact = ?");
+        $stmt->execute([$contact_norm]);
+        if ($stmt->rowCount() > 0) {
+            throw new Exception("Contact number already registered.");
+        }
 
         // 3. Handle Image Upload
         $image_filename = null;

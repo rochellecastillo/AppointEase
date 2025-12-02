@@ -3,6 +3,7 @@
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
+require_once 'logging_helper.php';
 
 // 1. Security Check: Ensure OTP was verified
 if (!isset($_SESSION['allow_password_reset']) || $_SESSION['allow_password_reset'] !== true || !isset($_SESSION['reset_user_id'])) {
