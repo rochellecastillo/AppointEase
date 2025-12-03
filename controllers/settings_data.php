@@ -18,18 +18,20 @@ $user_id = $_SESSION['user_id'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $first_name = htmlspecialchars(trim($_POST['first_name'] ?? ''));
     $last_name = htmlspecialchars(trim($_POST['last_name'] ?? ''));
-    $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
+    // Email input processing removed
     $phone = trim($_POST['phone'] ?? '');
 
     // Normalize phone number
     $normalized_phone = normalize_phone_ph($phone); 
 
-    if (empty($first_name) || empty($last_name) || !filter_var($email, FILTER_VALIDATE_EMAIL) || !validate_phone_ph($normalized_phone)) {
-        $error = "Please provide valid First Name, Last Name, Email, and Philippine Phone Number.";
+    // Validation check
+    if (empty($first_name) || empty($last_name) || !validate_phone_ph($normalized_phone)) {
+        $error = "Please provide valid First Name, Last Name, and Philippine Phone Number.";
     } else {
         try {
-            $stmt = $pdo->prepare("UPDATE tblinfo SET first_name = ?, last_name = ?, email = ?, contact = ? WHERE user_id = ?");
-            $stmt->execute([$first_name, $last_name, $email, $normalized_phone, $user_id]);
+            // Update query
+            $stmt = $pdo->prepare("UPDATE tblinfo SET first_name = ?, last_name = ?, contact = ? WHERE user_id = ?");
+            $stmt->execute([$first_name, $last_name, $normalized_phone, $user_id]);
             $success = "Profile information updated successfully!";
         } catch (Exception $e) {
             $error = "Error updating profile: " . $e->getMessage();
@@ -74,8 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 
 // --- Get Admin Info ---
 try {
+    // Select query
     $stmt = $pdo->prepare("
-        SELECT i.first_name, i.last_name, i.email, i.contact AS phone, u.user_name AS username
+        SELECT i.first_name, i.last_name, i.contact AS phone, u.user_name AS username
         FROM tblinfo i 
         JOIN tbluser u ON u.user_id = i.user_id
         WHERE i.user_id = ?
@@ -87,5 +90,6 @@ try {
     die("Database Error: " . $e->getMessage()); 
 }
 
-$admin_info = $admin_info ?: ['first_name' => '', 'last_name' => '', 'email' => '', 'phone' => '', 'username' => ''];
+// Default array
+$admin_info = $admin_info ?: ['first_name' => '', 'last_name' => '', 'phone' => '', 'username' => ''];
 ?>

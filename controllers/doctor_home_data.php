@@ -32,8 +32,9 @@ $stmt->execute([$my_user_id]);
 $count_patients = $stmt->fetchColumn();
 
 // Today's Schedule
+// FIX: Added 'a.user_id' to the SELECT clause so we can link to the patient's history correctly
 $stmt = $pdo->prepare("
-    SELECT a.id, a.booking_date, a.booking_time, a.status, 
+    SELECT a.id, a.user_id, a.booking_date, a.booking_time, a.status, 
            i.first_name, i.last_name, i.contact, i.gender
     FROM tblappointment a
     LEFT JOIN tblinfo i ON i.user_id = a.user_id
@@ -55,5 +56,3 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$my_user_id, $today]);
 $upcoming_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-?>

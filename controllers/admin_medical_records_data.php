@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['patient_id'])) {
 $search = $_GET['search'] ?? '';
 
 // FIXED: Changed 'i.avatar' to 'i.image' in the SELECT list
-$sql = "SELECT u.user_id, i.first_name, i.last_name, i.contact, i.email, i.image,
+$sql = "SELECT u.user_id, i.first_name, i.last_name, i.contact, i.image,
                hp.blood_type, hp.height, hp.weight, hp.allergies, hp.chronic_conditions, 
                hp.current_medications, hp.past_surgeries, hp.family_history, 
                hp.emergency_contact_name, hp.emergency_contact_phone, hp.updated_at

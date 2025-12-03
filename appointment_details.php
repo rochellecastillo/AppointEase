@@ -118,12 +118,8 @@ include __DIR__ . '/controllers/appointment_details_data.php';
                                                     <i data-lucide="phone" class="w-3.5 h-3.5"></i> <?= e($appointment['doc_contact']) ?>
                                                 </div>
                                             <?php endif; ?>
-                                            <?php if(!empty($appointment['doc_email'])): ?>
-                                                <div class="flex items-center gap-2 text-sm text-gray-500">
-                                                    <i data-lucide="mail" class="w-3.5 h-3.5"></i> <?= e($appointment['doc_email']) ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        </div>
+                                            
+                                            </div>
                                     </div>
                                 </div>
                             </div>
@@ -190,7 +186,6 @@ include __DIR__ . '/controllers/appointment_details_data.php';
                             <i data-lucide="printer" class="w-4 h-4"></i> Print Details
                         </button>
 
-                        <!-- Only show reschedule/cancel when allowed -->
                         <?php if ($can_modify): ?>
                             <a href="reschedule.php?id=<?= $apt_id ?>" class="px-5 py-2.5 bg-white border border-purple-200 text-purple-700 font-semibold rounded-xl hover:bg-purple-50 transition flex items-center justify-center gap-2">
                                 <i data-lucide="calendar-clock" class="w-4 h-4"></i> Reschedule
