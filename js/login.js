@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const loginForm = document.getElementById('loginForm');
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
-    const rememberCheckbox = document.getElementById('remember');
     const submitBtn = document.getElementById('submitBtn');
     const btnSpinner = document.getElementById('btnSpinner');
     const btnText = document.getElementById('btnText');
@@ -17,14 +16,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const SERVER_ERROR = document.getElementById('server-error');
     const SERVER_SUCCESS = document.getElementById('server-success');
 
-    // Restore saved username
-    try {
-        const saved = JSON.parse(localStorage.getItem('appointease_remember') || 'null');
-        if (saved && saved.username) {
-            usernameInput.value = saved.username;
-            rememberCheckbox.checked = true;
-        }
-    } catch (e) {}
 
     function showFieldError(elInput, elError, msg) {
         elInput.classList.add('input-error');
@@ -79,15 +70,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (submitting) {
             e.preventDefault();
             return;
-        }
-
-        if (rememberCheckbox.checked) {
-            localStorage.setItem('appointease_remember', JSON.stringify({
-                username: usernameInput.value.trim(),
-                saved_at: Date.now()
-            }));
-        } else {
-            localStorage.removeItem('appointease_remember');
         }
 
         submitting = true;

@@ -104,7 +104,6 @@ include __DIR__ . '/controllers/doctor_home_data.php';
                             <?php else: ?>
                                 <div class="divide-y divide-slate-100">
                                     <?php foreach($today_appointments as $apt): 
-                                        // UPDATED: Added status 3 logic here
                                         $statusColor = match((int)$apt['status']) {
                                             1 => 'bg-green-100 text-green-700',
                                             2 => 'bg-yellow-100 text-yellow-700',
@@ -135,7 +134,7 @@ include __DIR__ . '/controllers/doctor_home_data.php';
                                                 <span class="flex items-center gap-1"><i data-lucide="user" width="14"></i> <?= e($apt['gender'] ?? 'Patient') ?></span>
                                             </p>
                                             <div class="flex gap-3">
-                                                <a href="doctor_records.php?patient_id=<?= $apt['id'] ?>" class="text-xs font-bold text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition">
+                                                <a href="doctor_records.php?patient_id=<?= $apt['user_id'] ?>" class="text-xs font-bold text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition">
                                                     View History
                                                 </a>
                                                 <?php if(in_array($apt['status'], [1, 2])): ?>
@@ -199,8 +198,6 @@ include __DIR__ . '/controllers/doctor_home_data.php';
         
         if (mobileBtn && sidebar) {
             mobileBtn.addEventListener('click', () => {
-                // Toggle logic depends on your sidebar implementation
-                // If your sidebar uses 'hidden' class for mobile:
                 sidebar.classList.toggle('hidden');
                 sidebar.classList.toggle('fixed');
                 sidebar.classList.toggle('inset-0');

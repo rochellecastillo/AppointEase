@@ -18,7 +18,7 @@ if (!$patient_id) {
 // --- 1. FETCH PATIENT DETAILS & HEALTH PROFILE ---
 try {
     $stmt = $pdo->prepare("
-        SELECT i.first_name, i.last_name, i.contact, i.email, i.gender, i.bdate, i.address, i.image,
+        SELECT i.first_name, i.last_name, i.contact, i.gender, i.bdate, i.address, i.image,
                hp.blood_type, hp.height, hp.weight, hp.allergies, hp.chronic_conditions, 
                hp.current_medications, hp.past_surgeries, hp.family_history, 
                hp.emergency_contact_name, hp.emergency_contact_phone

@@ -1,5 +1,5 @@
 <?php
-// Get the current page name (e.g., 'admin_home.php')
+// admin sidebar
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // Helper to set active classes

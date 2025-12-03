@@ -1,6 +1,5 @@
 <?php
-// appointment_details.php - Detailed Appointment View (updated)
-// ----------------------------------------------------------------
+// controllers/appointment_details_data.php
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
@@ -62,7 +61,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT a.*,
                d.first_name AS doc_first, d.last_name AS doc_last, d.specialization,
-               d.contact AS doc_contact, d.address AS doc_address, d.image AS doc_image, d.email AS doc_email,
+               d.contact AS doc_contact, d.address AS doc_address, d.image AS doc_image,
                p.first_name AS pat_first, p.last_name AS pat_last, p.contact AS pat_contact
         FROM tblappointment a
         LEFT JOIN tblinfo d ON d.user_id = a.doctor

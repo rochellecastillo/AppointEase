@@ -85,10 +85,6 @@ include __DIR__ . '/controllers/doctor_view_data.php';
                                     <p class="font-medium text-slate-700"><?= val('contact', $patient) ?></p>
                                 </div>
                                 <div>
-                                    <p class="text-xs font-bold text-slate-400 uppercase">Email</p>
-                                    <p class="font-medium text-slate-700"><?= val('email', $patient) ?></p>
-                                </div>
-                                <div>
                                     <p class="text-xs font-bold text-slate-400 uppercase">Address</p>
                                     <p class="font-medium text-slate-700"><?= val('address', $patient) ?></p>
                                 </div>
