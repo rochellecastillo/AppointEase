@@ -1,9 +1,9 @@
 <?php
 // db.php
 $host = '127.0.0.1';
-$db   = 'appointment';   // your DB name
+$db   = 'appointment';  
 $user = 'root';
-$pass = '';              // set your DB password
+$pass = '';             
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

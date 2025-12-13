@@ -1,5 +1,5 @@
 <?php
-// verify_otp.php - Universal OTP Verification (Signup & Password Reset Only)
+// verify_otp.php - Universal OTP Verification
 require_once 'session_handler.php';
 require_once 'security_helper.php';
 require_once 'db.php';
@@ -26,13 +26,13 @@ switch ($action) {
     case 'add_doctor':
         $page_title = "Verify Doctor Registration";
         $success_msg = "Doctor account created successfully!";
-        $redirect_url = "doctors_info_report.php";
+        $redirect_url = "doctors_info_report.php"; // Admin page
         $redirect_btn_text = "Return to Doctor List";
         break;
     case 'add_patient_admin':
         $page_title = "Verify Patient Registration";
         $success_msg = "Patient account created successfully!";
-        $redirect_url = "users_list.php.php"; // Or users_list.php
+        $redirect_url = "users_list.php"; 
         $redirect_btn_text = "Return to Patient List";
         break;
     case 'forgot_password':
@@ -51,8 +51,8 @@ switch ($action) {
 }
 
 // User ID Generator Helper
-function generate_user_id($pdo) {
-    $base = 'U' . date('ymd');
+function generate_user_id($pdo, $prefix = 'U') {
+    $base = $prefix . date('ymd');
     $i = 1;
     while (true) {
         $uid = $base . '-' . str_pad($i, 3, '0', STR_PAD_LEFT);
@@ -99,17 +99,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header('Location: reset_new_password.php');
                     exit;
 
-                } elseif ($action === 'signup') {
-                    // --- CASE 2: PATIENT SIGNUP ---
-                    $user_id = generate_user_id($pdo);
+                } elseif ($action === 'add_doctor') {
+                    // --- CASE 2: ADD DOCTOR (ADMIN) ---
+                    $user_id = generate_user_id($pdo, 'D'); // 'D' prefix for Doctor
                     
-                    // Insert Info
+                    // 1. Insert Profile Info FIRST (Parent Table)
+                    // This fixes the 1452 Integrity Error
+                    $stmt = $pdo->prepare("INSERT INTO tblinfo (user_id, last_name, first_name, middle_name, bdate, gender, address, contact, specialization, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([
+                        $user_id, 
+                        $payload['last_name'], 
+                        $payload['first_name'], 
+                        $payload['middle_name'], 
+                        $payload['bdate'], 
+                        $payload['gender'], 
+                        $payload['address'], 
+                        $payload['contact'], 
+                        $payload['specialization'], 
+                        $payload['image']
+                    ]);
+
+                    // 2. Insert User Account SECOND (Child Table)
+                    $hash = hash_password($payload['password']); 
+                    $stmt = $pdo->prepare("INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, 'doctor', 1)");
+                    $stmt->execute([$user_id, $payload['username'], $hash]);
+
+                } elseif ($action === 'signup' || $action === 'add_patient_admin') {
+                    // --- CASE 3: PATIENT SIGNUP ---
+                    $user_id = generate_user_id($pdo, 'U'); // 'U' prefix
+                    
+                    // 1. Insert Info FIRST (Parent Table)
                     $stmt = $pdo->prepare("INSERT INTO tblinfo (user_id, last_name, first_name, middle_name, bdate, gender, address, contact, specialization, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $stmt->execute([$user_id, $payload['last_name'], $payload['first_name'], $payload['middle_name'], $payload['bdate'], $payload['gender'], $payload['address'], $payload['contact'], '', '']);
                     
-                    // Insert User
+                    // 2. Insert User SECOND (Child Table)
+                    $hash = hash_password($payload['password']);
                     $stmt = $pdo->prepare("INSERT INTO tbluser (user_id, user_name, password, user_type, status) VALUES (?, ?, ?, 'user', 1)");
-                    $stmt->execute([$user_id, $payload['user_name'], $payload['password']]);
+                    $stmt->execute([$user_id, $payload['username'] ?? $payload['user_name'], $hash]);
                 }
 
                 $pdo->commit();

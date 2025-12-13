@@ -1,14 +1,13 @@
 <?php
-// chat_widget_talkjs.php - Improved Secure Contact Logic (with Assigned Doctor + Admin list UI)
+// chat_widget_talkjs.php - "Clean Clinical" Design with Roles + Quick Search
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-require_once 'db.php'; // Ensure DB connection exists
+require_once 'db.php';
 
-// 1. Get Current User ID & Role
+// --- PHP LOGIC (SAME AS BEFORE) ---
 $current_user_id = $my_user_id ?? $_SESSION['user_id'] ?? null;
 $current_user_role = $_SESSION['user_type'] ?? 'user';
 
-// 2. FETCH CURRENT USER DETAILS (The Fix)
 $display_name = 'User';
 $avatar_url = '';
 
@@ -24,8 +23,7 @@ if ($current_user_id) {
                 $avatar_url = 'uploads/' . $myInfo['image'];
             }
         } else {
-            // Fallback for admins or legacy users
-            $display_name = $_SESSION['user_name'] ?? $_SESSION['username'] ?? 'Administrator';
+            $display_name = $_SESSION['user_name'] ?? 'Administrator';
         }
     } catch (Exception $e) {
         $display_name = $_SESSION['username'] ?? 'User';
@@ -33,7 +31,7 @@ if ($current_user_id) {
 }
 
 if (empty($avatar_url)) {
-    $avatar_url = 'https://ui-avatars.com/api/?name=' . urlencode($display_name) . '&background=0D8ABC&color=fff';
+    $avatar_url = 'https://ui-avatars.com/api/?name=' . urlencode($display_name) . '&background=0d9488&color=fff';
 }
 
 $current_user_data = [
@@ -44,135 +42,142 @@ $current_user_data = [
     'role' => $current_user_role
 ];
 
-// 3. FETCH CONTACTS (Existing Logic)
+// FETCH CONTACTS
 $contacts = [];
 try {
     if ($current_user_id) {
         if ($current_user_role === 'user') {
-            // For patients: fetch distinct doctors from appointments that are confirmed (status=1) or attended (status=3)
-            $stmt = $pdo->prepare("
-                SELECT DISTINCT i.user_id, i.first_name, i.last_name, i.image, 'doctor' AS role
-                FROM tblappointment a
-                JOIN tblinfo i ON i.user_id = a.doctor
-                WHERE a.user_id = ? AND a.status IN (1, 3)
-                ORDER BY i.last_name
-            ");
+            $stmt = $pdo->prepare("SELECT DISTINCT i.user_id, i.first_name, i.last_name, i.image, 'doctor' AS role FROM tblappointment a JOIN tblinfo i ON i.user_id = a.doctor WHERE a.user_id = ? AND a.status IN (1, 3) ORDER BY i.last_name");
             $stmt->execute([$current_user_id]);
             $contacts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } elseif ($current_user_role === 'doctor') {
-            $stmt = $pdo->prepare("
-                SELECT DISTINCT i.user_id, i.first_name, i.last_name, i.image, 'user' AS role
-                FROM tblappointment a
-                JOIN tblinfo i ON i.user_id = a.user_id
-                WHERE a.doctor = ? AND a.status IN (1, 3)
-                ORDER BY i.last_name
-            ");
+            $stmt = $pdo->prepare("SELECT DISTINCT i.user_id, i.first_name, i.last_name, i.image, 'user' AS role FROM tblappointment a JOIN tblinfo i ON i.user_id = a.user_id WHERE a.doctor = ? AND a.status IN (1, 3) ORDER BY i.last_name");
             $stmt->execute([$current_user_id]);
             $contacts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } elseif ($current_user_role === 'admin') {
-            // Admin can see all doctors and patients
-            $stmt = $pdo->prepare("
-                SELECT i.user_id, i.first_name, i.last_name, i.image, u.user_type AS role
-                FROM tblinfo i
-                JOIN tbluser u ON u.user_id = i.user_id
-                WHERE u.user_type IN ('doctor', 'user') AND i.user_id != ?
-                ORDER BY i.last_name
-            ");
+            $stmt = $pdo->prepare("SELECT i.user_id, i.first_name, i.last_name, i.image, u.user_type AS role FROM tblinfo i JOIN tbluser u ON u.user_id = i.user_id WHERE u.user_type IN ('doctor', 'user') AND i.user_id != ? ORDER BY i.last_name");
             $stmt->execute([$current_user_id]);
             $contacts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
     }
-} catch (Exception $e) {
-    // ignore and keep contacts empty
-}
+} catch (Exception $e) {}
 
-// 4. EXTRA: For patients, also fetch the *latest assigned doctor per confirmed appointment* (useful for showing assigned doctor list)
+// FETCH ASSIGNED
 $assignedDoctors = [];
 if ($current_user_id && $current_user_role === 'user') {
     try {
-        // Get latest confirmed appointment(s) and corresponding doctor info
-        $stmtAssigned = $pdo->prepare("
-            SELECT DISTINCT i.user_id, i.first_name, i.last_name, i.image, a.appointment_id, a.booking_date, a.booking_time
-            FROM tblappointment a
-            JOIN tblinfo i ON i.user_id = a.doctor
-            WHERE a.user_id = ? AND a.status = 1
-            ORDER BY a.booking_date DESC, a.booking_time DESC
-        ");
+        $stmtAssigned = $pdo->prepare("SELECT DISTINCT i.user_id, i.first_name, i.last_name, i.image FROM tblappointment a JOIN tblinfo i ON i.user_id = a.doctor WHERE a.user_id = ? AND a.status = 1 ORDER BY a.booking_date DESC");
         $stmtAssigned->execute([$current_user_id]);
         $assignedDoctors = $stmtAssigned->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        $assignedDoctors = [];
-    }
+    } catch (Exception $e) {}
 }
 
-// Map contacts for JS
+// JSON Maps
 $contactList = array_map(function($c) {
-    $role_prefix = ($c['role'] === 'user') ? 'U_' : (($c['role'] === 'doctor') ? 'D_' : 'A_');
-    $photo = !empty($c['image']) ? 'uploads/' . $c['image'] : 'https://ui-avatars.com/api/?name=' . urlencode($c['first_name'] . '+' . $c['last_name']);
     return [
-        'user_id' => $c['user_id'],
-        'id' => $role_prefix . $c['user_id'],
+        'id' => (($c['role'] === 'user') ? 'U_' : (($c['role'] === 'doctor') ? 'D_' : 'A_')) . $c['user_id'],
         'name' => htmlspecialchars($c['first_name'] . ' ' . $c['last_name']),
-        'email' => $c['user_id'] . '@appointease.com',
-        'photoUrl' => $photo,
+        'photoUrl' => !empty($c['image']) ? 'uploads/' . $c['image'] : 'https://ui-avatars.com/api/?name=' . urlencode($c['first_name'] . '+' . $c['last_name']),
         'role' => $c['role']
     ];
 }, $contacts);
 
-// Map assigned doctors for JS (patients only)
 $assignedList = array_map(function($d) {
-    $photo = !empty($d['image']) ? 'uploads/' . $d['image'] : 'https://ui-avatars.com/api/?name=' . urlencode($d['first_name'] . '+' . $d['last_name']);
     return [
-        'user_id' => $d['user_id'],
         'id' => 'D_' . $d['user_id'],
         'name' => htmlspecialchars($d['first_name'] . ' ' . $d['last_name']),
-        'photoUrl' => $photo,
-        'appointment_id' => $d['appointment_id'] ?? null,
-        'booking_date' => $d['booking_date'] ?? null,
-        'booking_time' => $d['booking_time'] ?? null,
+        'photoUrl' => !empty($d['image']) ? 'uploads/' . $d['image'] : 'https://ui-avatars.com/api/?name=' . urlencode($d['first_name'] . '+' . $d['last_name']),
         'role' => 'doctor'
     ];
 }, $assignedDoctors);
 ?>
 
-<div id="chatWidgetContainer" class="fixed bottom-6 right-6 z-50 font-sans">
-    <div id="talkjsWindowWrapper" class="relative hidden transition-all duration-300 transform origin-bottom-right scale-95 opacity-0">
-        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 flex flex-col" style="width: 380px; height: 550px; max-width: 90vw; max-height: 80vh;">
-            <div class="bg-blue-600 p-3 flex justify-between items-center text-white shrink-0">
-                <span class="font-bold text-sm flex items-center gap-2">
-                    <i data-lucide="message-circle" width="18"></i> Messages
-                </span>
-                <button id="chatCloseWidgetBtn" class="hover:bg-blue-700 p-1 rounded-full transition">
-                    <i data-lucide="x" width="18"></i>
+<style>
+    #talkjsWindowWrapper { transition: transform 0.3s ease-out, opacity 0.3s ease-out; }
+    .quick-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+    .quick-scroll::-webkit-scrollbar-track { background: transparent; }
+    .quick-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 2px; }
+    /* search input styles */
+    .chat-search {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        padding: 6px;
+        border-radius: 10px;
+    }
+    .chat-search input {
+        border: none;
+        outline: none;
+        font-size: 13px;
+        background: transparent;
+        width: 100%;
+    }
+    .chat-search button {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+    }
+</style>
+
+<div id="chatWidgetContainer" class="fixed bottom-5 right-5 z-[9999] font-sans flex flex-col items-end gap-3">
+    
+    <div id="talkjsWindowWrapper" class="relative hidden transform translate-y-10 opacity-0 origin-bottom">
+        <div class="bg-white rounded-t-xl rounded-bl-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] overflow-hidden border border-slate-200 flex flex-col" 
+             style="width: 360px; height: 580px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px);">
+            
+            <div class="bg-slate-800 p-4 flex justify-between items-center text-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <div class="bg-teal-500 p-1.5 rounded-lg">
+                            <i data-lucide="activity" width="18" height="18" class="text-white"></i>
+                        </div>
+                        <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 border-2 border-slate-800 rounded-full"></span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-semibold text-sm leading-none">Medical Support</span>
+                        <span class="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Untalan GH</span>
+                    </div>
+                </div>
+                <button id="chatCloseWidgetBtn" class="text-slate-400 hover:text-white hover:bg-white/10 p-1.5 rounded-md transition">
+                    <i data-lucide="minus" width="20"></i>
                 </button>
             </div>
 
-            <!-- Top contact quick-list (Assigned Doctor for patient, or full list for admin) -->
-            <div id="contactQuickList" class="p-3 border-b bg-white" style="max-height: 140px; overflow-y:auto;">
-                <!-- Rendered by JS using CONTACTS_JSON and ASSIGNED_JSON -->
+            <!-- Quick contacts + Search -->
+            <div id="contactQuickListContainer" class="bg-slate-50 border-b border-slate-200 p-3 hidden">
+                <div class="mb-2">
+                    <div class="chat-search">
+                        <i data-lucide="search" width="16" class="text-slate-400"></i>
+                        <input id="chatSearchInput" type="search" placeholder="Search contacts..." aria-label="Search contacts">
+                        <button id="chatSearchClear" title="Clear search" aria-label="Clear search" style="display:none;">
+                            <i data-lucide="x" width="14" class="text-slate-400"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="contactQuickList" class="flex gap-2 overflow-x-auto quick-scroll py-1 px-1"></div>
             </div>
 
-            <!-- Main chat area where TalkJS mounts -->
-            <div id="talkjs-container" class="flex-1 bg-gray-50 relative">
-                <div id="chatLoader" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <span class="text-xs">Loading chat...</span>
+            <div id="talkjs-container" class="flex-1 bg-white relative">
+                <div id="chatLoader" class="absolute inset-0 flex flex-col items-center justify-center bg-white z-20">
+                    <div class="w-10 h-10 border-4 border-teal-100 border-t-teal-600 rounded-full animate-spin mb-3"></div>
+                    <span class="text-xs text-slate-500 font-medium">Loading secure chat...</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <button id="chatToggleBtn" class="bg-blue-600 text-white w-14 h-14 rounded-full shadow-lg hover:bg-blue-700 transition duration-300 flex items-center justify-center hover:scale-110 active:scale-95 relative">
-        <i data-lucide="message-square" width="24" height="24"></i>
+    <button id="chatToggleBtn" class="flex items-center gap-3 bg-teal-600 text-white px-5 py-3.5 rounded-full shadow-lg hover:bg-teal-700 hover:shadow-teal-600/30 transition-all duration-300 transform hover:-translate-y-1 group">
+        <span class="font-semibold text-sm tracking-wide">Chat with us</span>
+        <div class="bg-white/20 p-1 rounded-full">
+            <i data-lucide="message-circle" width="20" height="20" class="group-hover:rotate-12 transition-transform"></i>
+        </div>
     </button>
+
 </div>
 
-<?php include 'talkjs_script_loader.php'; ?>
-
-<?php
-// includes/talkjs_script_loader.php - kept as inline include for the widget
-if (!isset($current_user_data)) return;
-?>
 <script>
 (function(t,a,l,k,j,s){
     s=a.createElement('script');s.async=1;s.src="https://cdn.talkjs.com/talk.js";a.head.appendChild(s)
@@ -193,135 +198,159 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatDiv = document.getElementById('talkjs-container');
     const loader = document.getElementById('chatLoader');
     const quickList = document.getElementById('contactQuickList');
+    const quickListContainer = document.getElementById('contactQuickListContainer');
+    const searchInput = document.getElementById('chatSearchInput');
+    const searchClearBtn = document.getElementById('chatSearchClear');
 
-    // Data passed from PHP
-    const CONTACTS = <?= json_encode($contactList) ?>;     // contacts (doctors/patients) relevant to the user or admin
-    const ASSIGNED = <?= json_encode($assignedList) ?>;    // assigned doctors for a patient (if any)
+    const CONTACTS = <?= json_encode($contactList) ?>;
+    const ASSIGNED = <?= json_encode($assignedList) ?>;
 
     let session = null;
     let isLoaded = false;
 
-    // Utility: render a small contact card in quick list
-    function renderContactCard(item) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'flex items-center gap-3 mb-2';
+    // Helper: debounce
+    function debounce(fn, delay = 200) {
+        let t;
+        return function(...args) {
+            clearTimeout(t);
+            t = setTimeout(() => fn.apply(this, args), delay);
+        };
+    }
 
+    // Render "Chip" style contact with ROLE label
+    function renderContactChip(item) {
+        const btn = document.createElement('button');
+        btn.className = 'flex items-center gap-3 bg-white border border-slate-200 rounded-lg pl-2 pr-4 py-2 hover:border-teal-500 hover:shadow-md transition-all shrink-0 group min-w-[140px] text-left';
+        
         const img = document.createElement('img');
         img.src = item.photoUrl;
+        img.className = 'w-9 h-9 rounded-full object-cover bg-slate-100 border border-slate-100';
         img.alt = item.name;
-        img.className = 'w-9 h-9 rounded-full object-cover border';
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'flex flex-col';
 
-        const info = document.createElement('div');
-        info.style.flex = '1';
-        const name = document.createElement('div');
-        name.className = 'text-sm font-medium';
-        name.textContent = item.name;
-        const meta = document.createElement('div');
-        meta.className = 'text-xs text-gray-500';
-        meta.textContent = item.role === 'doctor' ? 'Doctor' : (item.role === 'user' ? 'Patient' : 'Admin');
+        const name = document.createElement('span');
+        name.className = 'text-xs font-bold text-slate-800 group-hover:text-teal-700 whitespace-nowrap leading-tight';
+        const shortName = item.name.length > 15 ? item.name.substring(0,12) + '...' : item.name;
+        name.textContent = shortName;
 
-        info.appendChild(name);
-        info.appendChild(meta);
+        // Role Label
+        const roleLabel = document.createElement('span');
+        roleLabel.className = 'text-[10px] font-medium text-slate-400 uppercase tracking-wide group-hover:text-teal-500';
+        roleLabel.textContent = (item.role || '').charAt(0).toUpperCase() + (item.role || '').slice(1);
 
-        const btn = document.createElement('button');
-        btn.className = 'px-2 py-1 rounded text-xs bg-blue-600 text-white hover:bg-blue-700 transition';
-        btn.textContent = 'Message';
+        infoDiv.appendChild(name);
+        infoDiv.appendChild(roleLabel);
+
+        btn.appendChild(img);
+        btn.appendChild(infoDiv);
+
         btn.addEventListener('click', () => {
-            // Use the global helper
             window.startChatWith(item.id, item.name, item.role, item.photoUrl);
         });
 
-        wrapper.appendChild(img);
-        wrapper.appendChild(info);
-        wrapper.appendChild(btn);
-
-        return wrapper;
+        return btn;
     }
 
-    // Populate quick list: priority
-    // 1) If user is patient and has assigned doctors, show them
-    // 2) Else if admin show CONTACTS (full list)
-    // 3) Else show CONTACTS if any
-    function populateQuickList() {
+    // Filter array by query (name or role)
+    function matchesQuery(item, q) {
+        if (!q) return true;
+        const text = (item.name + ' ' + (item.role || '')).toLowerCase();
+        return text.indexOf(q) !== -1;
+    }
+
+    // Populate quick list from a provided array
+    function populateFromArray(arr) {
+        arr.forEach(item => quickList.appendChild(renderContactChip(item)));
+    }
+
+    // Filter and render (combines ASSIGNED or CONTACTS based on role)
+    function filterAndRenderQuickList(query) {
         quickList.innerHTML = '';
+        const q = (query || '').trim().toLowerCase();
 
-        if (ME.role === 'user' && ASSIGNED && ASSIGNED.length) {
-            const heading = document.createElement('div');
-            heading.className = 'text-xs font-semibold mb-2';
-            heading.textContent = 'Assigned Doctor(s)';
-            quickList.appendChild(heading);
-
-            ASSIGNED.forEach(d => {
-                // Map to shape expected by renderContactCard
-                const item = {
-                    id: d.id,
-                    name: d.name,
-                    role: 'doctor',
-                    photoUrl: d.photoUrl,
-                    appointment_id: d.appointment_id,
-                    booking_date: d.booking_date,
-                    booking_time: d.booking_time
-                };
-                quickList.appendChild(renderContactCard(item));
-            });
-            return;
+        // Decide which list to show (same logic as before)
+        let listToShow = [];
+        if (ME.role === 'user' && ASSIGNED.length > 0) {
+            listToShow = ASSIGNED;
+        } else if (ME.role === 'admin' || (CONTACTS.length > 0)) {
+            listToShow = CONTACTS;
         }
 
-        // Admin: show all contacts (doctors + patients)
-        if (ME.role === 'admin' && CONTACTS && CONTACTS.length) {
-            const heading = document.createElement('div');
-            heading.className = 'text-xs font-semibold mb-2';
-            heading.textContent = 'Users';
-            quickList.appendChild(heading);
-
-            CONTACTS.forEach(c => {
-                const item = {
-                    id: c.id,
-                    name: c.name,
-                    role: c.role,
-                    photoUrl: c.photoUrl
-                };
-                quickList.appendChild(renderContactCard(item));
-            });
-            return;
+        // If there's a search query, include both CONTACTS and ASSIGNED to give broader results
+        if (q) {
+            const merged = [...new Map([...ASSIGNED, ...CONTACTS].map(i => [i.id, i])).values()];
+            const filtered = merged.filter(item => matchesQuery(item, q));
+            if (filtered.length > 0) {
+                filtered.forEach(item => quickList.appendChild(renderContactChip(item)));
+                quickListContainer.classList.remove('hidden');
+                return;
+            } else {
+                // no results
+                quickListContainer.classList.remove('hidden');
+                const none = document.createElement('div');
+                none.className = 'text-xs text-slate-400 px-2';
+                none.textContent = 'No contacts found';
+                quickList.appendChild(none);
+                return;
+            }
         }
 
-        // Default: for doctors or users with no assigned doctors, show CONTACTS (if any)
-        if (CONTACTS && CONTACTS.length) {
-            const heading = document.createElement('div');
-            heading.className = 'text-xs font-semibold mb-2';
-            heading.textContent = 'Contacts';
-            quickList.appendChild(heading);
-
-            CONTACTS.forEach(c => {
-                const item = {
-                    id: c.id,
-                    name: c.name,
-                    role: c.role,
-                    photoUrl: c.photoUrl
-                };
-                quickList.appendChild(renderContactCard(item));
-            });
-            return;
+        // No search query — show default listToShow
+        if (listToShow.length > 0) {
+            listToShow.forEach(item => quickList.appendChild(renderContactChip(item)));
+            quickListContainer.classList.remove('hidden');
+        } else {
+            quickListContainer.classList.add('hidden');
         }
-
-        // Nothing to show
-        const none = document.createElement('div');
-        none.className = 'text-xs text-gray-500';
-        none.textContent = (ME.role === 'user') ? 'No assigned doctors yet.' : 'No contacts available.';
-        quickList.appendChild(none);
     }
 
-    // Toggle Logic
+    function populateQuickList() {
+        filterAndRenderQuickList('');
+    }
+
+    // Wire search input with debounce
+    const onSearchInput = debounce(function(e) {
+        const v = (e.target.value || '').trim();
+        if (v.length > 0) {
+            searchClearBtn.style.display = 'inline';
+        } else {
+            searchClearBtn.style.display = 'none';
+        }
+        filterAndRenderQuickList(v.toLowerCase());
+    }, 180);
+
+    searchInput.addEventListener('input', onSearchInput);
+
+    searchClearBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        searchInput.value = '';
+        searchClearBtn.style.display = 'none';
+        filterAndRenderQuickList('');
+        searchInput.focus();
+    });
+
     toggleBtn.addEventListener('click', () => {
         container.classList.remove('hidden');
         toggleBtn.classList.add('hidden');
-        setTimeout(() => { container.classList.remove('scale-95', 'opacity-0'); }, 10);
+        
+        setTimeout(() => { 
+            container.classList.remove('translate-y-10', 'opacity-0'); 
+        }, 10);
+        
         if (!isLoaded) initTalkJS();
+
+        // When opening, focus search if quick list visible
+        setTimeout(() => {
+            if (!quickListContainer.classList.contains('hidden')) {
+                searchInput.focus();
+            }
+        }, 400);
     });
 
     closeBtn.addEventListener('click', () => {
-        container.classList.add('scale-95', 'opacity-0');
+        container.classList.add('translate-y-10', 'opacity-0');
         setTimeout(() => {
             container.classList.add('hidden');
             toggleBtn.classList.remove('hidden');
@@ -332,7 +361,6 @@ document.addEventListener("DOMContentLoaded", () => {
         isLoaded = true;
         await Talk.ready;
 
-        // Create current user for TalkJS
         const me = new Talk.User({
             id: ME.id,
             name: ME.name,
@@ -343,26 +371,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         session = new Talk.Session({ appId: APP_ID, me: me });
 
-        // Mount the Inbox by default (list + chat)
         const inbox = session.createInbox();
         inbox.mount(chatDiv);
 
-        setTimeout(() => { loader.style.display = 'none'; }, 1200);
-
-        // Populate quick contact list after session ready
+        setTimeout(() => { loader.style.display = 'none'; }, 1000);
         populateQuickList();
     }
 
-    // Global helper to start chat from other buttons
     window.startChatWith = async function(targetId, targetName, targetRole, targetPhoto) {
-        // open the widget if closed
-        if (container.classList.contains('hidden') || toggleBtn.offsetParent !== null) {
-            // If toggle button visible (widget closed), simulate click to open
-            if (!container.classList.contains('hidden')) {
-                // already visible
-            } else {
-                toggleBtn.click();
-            }
+        if (container.classList.contains('hidden')) {
+            toggleBtn.click();
         }
 
         if (!session) await initTalkJS();
@@ -378,11 +396,9 @@ document.addEventListener("DOMContentLoaded", () => {
         conversation.setParticipant(session.me);
         conversation.setParticipant(other);
 
-        // Mount a chatbox to show the specific conversation (replaces inbox mount visually)
         const chatbox = session.createChatbox();
         chatbox.select(conversation);
-        // Ensure chatbox replaces the inbox area
-        chatDiv.innerHTML = ''; // remove inbox to prevent duplicate mounts
+        chatDiv.innerHTML = ''; 
         chatbox.mount(chatDiv);
     };
 });

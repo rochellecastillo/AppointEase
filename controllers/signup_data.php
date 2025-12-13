@@ -80,9 +80,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if ($stmt->fetch()) $errors[] = "Username already taken.";
 
         // // Check tblinfo for contact
-        // $stmt = $pdo->prepare("SELECT 1 FROM tblinfo WHERE contact = ? LIMIT 1");
-        // $stmt->execute([$contact_norm]);
-        // if ($stmt->fetch()) $errors[] = "This contact number is already registered.";
+        $stmt = $pdo->prepare("SELECT 1 FROM tblinfo WHERE contact = ? LIMIT 1");
+        $stmt->execute([$contact_norm]);
+        if ($stmt->fetch()) $errors[] = "This contact number is already registered.";
     }
 
     // 6. Process Signup -> Send to Universal OTP

@@ -16,19 +16,35 @@ document.addEventListener('DOMContentLoaded', function () {
     const SERVER_ERROR = document.getElementById('server-error');
     const SERVER_SUCCESS = document.getElementById('server-success');
 
-
     function showFieldError(elInput, elError, msg) {
+        if (!elInput) return;
         elInput.classList.add('input-error');
-        elError.textContent = msg;
-        elError.style.display = 'block';
+        if (elError) {
+            elError.textContent = msg;
+            elError.style.display = 'block';
+        }
     }
 
     function clearFieldError(elInput, elError) {
+        if (!elInput) return;
         elInput.classList.remove('input-error');
-        elError.style.display = 'none';
+        if (elError) {
+            // defensive: only access style if element exists
+            try {
+                elError.style.display = 'none';
+                elError.textContent = '';
+            } catch (err) {
+                // ignore if style isn't available for some reason
+            }
+        }
     }
 
-    [usernameInput, passwordInput].forEach((el) => {
+    // only wire up listeners when inputs exist
+    const inputs = [];
+    if (usernameInput) inputs.push(usernameInput);
+    if (passwordInput) inputs.push(passwordInput);
+
+    inputs.forEach((el) => {
         el.addEventListener('input', () => {
             if (el === usernameInput) clearFieldError(usernameInput, usernameError);
             if (el === passwordInput) clearFieldError(passwordInput, passwordError);
@@ -38,51 +54,58 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    togglePasswordBtn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        const hidden = passwordInput.type === 'password';
-        passwordInput.type = hidden ? 'text' : 'password';
-        togglePasswordBtn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
-        eyeIcon.setAttribute('data-lucide', hidden ? 'eye-off' : 'eye');
-        lucide.createIcons();
-        passwordInput.focus();
-    });
+    // toggle password button - only if present
+    if (togglePasswordBtn && passwordInput && eyeIcon) {
+        togglePasswordBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            const hidden = passwordInput.type === 'password';
+            passwordInput.type = hidden ? 'text' : 'password';
+            togglePasswordBtn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+            eyeIcon.setAttribute('data-lucide', hidden ? 'eye-off' : 'eye');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            passwordInput.focus();
+        });
+    }
 
     let submitting = false;
 
-    loginForm.addEventListener('submit', (e) => {
-        let valid = true;
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            let valid = true;
 
-        if (!usernameInput.value.trim()) {
-            showFieldError(usernameInput, usernameError, 'Please enter your username');
-            valid = false;
-        }
-        if (!passwordInput.value) {
-            showFieldError(passwordInput, passwordError, 'Please enter your password');
-            valid = false;
-        }
+            if (!usernameInput || !usernameInput.value.trim()) {
+                showFieldError(usernameInput, usernameError, 'Please enter your username');
+                valid = false;
+            }
+            if (!passwordInput || !passwordInput.value) {
+                showFieldError(passwordInput, passwordError, 'Please enter your password');
+                valid = false;
+            }
 
-        if (!valid) {
-            e.preventDefault();
-            return;
-        }
+            if (!valid) {
+                e.preventDefault();
+                return;
+            }
 
-        if (submitting) {
-            e.preventDefault();
-            return;
-        }
+            if (submitting) {
+                e.preventDefault();
+                return;
+            }
 
-        submitting = true;
-        submitBtn.disabled = true;
-        btnSpinner.classList.remove('hidden');
-        btnText.textContent = 'Signing in...';
-    });
+            submitting = true;
+            if (submitBtn) submitBtn.disabled = true;
+            if (btnSpinner) btnSpinner.classList.remove('hidden');
+            if (btnText) btnText.textContent = 'Signing in...';
+        });
+    }
 
     function fadeOut(el, ms = 600) {
         if (!el) return;
         el.style.transition = `opacity ${ms}ms`;
         el.style.opacity = 0;
-        setTimeout(() => el.remove(), ms + 50);
+        setTimeout(() => {
+            if (el && el.parentNode) el.remove();
+        }, ms + 50);
     }
 
     if (SERVER_ERROR) setTimeout(() => fadeOut(SERVER_ERROR), 6000);
@@ -91,9 +114,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // Focus logic if server returned error
     const hasServerError = document.body.getAttribute('data-server-error') === '1';
     if (hasServerError) {
-        if (usernameInput.value.trim()) passwordInput.focus();
-        else usernameInput.focus();
+        if (usernameInput && usernameInput.value.trim()) {
+            if (passwordInput) passwordInput.focus();
+        } else {
+            if (usernameInput) usernameInput.focus();
+        }
     }
 
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 });
