@@ -52,13 +52,9 @@ include __DIR__ . '/controllers/users_list_data.php';
                            class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500 transition"
                            placeholder="Search by name or Patient ID...">
                 </div>
-                <button type="submit" class="px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-xl transition font-medium">
-                    Search
-                </button>
+                <button type="submit" class="px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-xl transition font-medium">Search</button>
                 <?php if($search): ?>
-                <a href="users_list.php" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl border border-gray-200 flex items-center">
-                    <i data-lucide="x" width="18"></i>
-                </a>
+                <a href="users_list.php" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl border border-gray-200 flex items-center"><i data-lucide="x" width="18"></i></a>
                 <?php endif; ?>
             </form>
         </div>
@@ -77,14 +73,7 @@ include __DIR__ . '/controllers/users_list_data.php';
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <?php if (empty($patients)): ?>
-                            <tr>
-                                <td colspan="5" class="p-8 text-center text-gray-500">
-                                    <div class="flex flex-col items-center gap-2">
-                                        <i data-lucide="users" class="text-gray-300" width="32"></i>
-                                        <p>No patients found.</p>
-                                    </div>
-                                </td>
-                            </tr>
+                            <tr><td colspan="5" class="p-8 text-center text-gray-500">No patients found.</td></tr>
                         <?php else: foreach ($patients as $user): 
                             $fullName = trim(($user['last_name'] ?? '') . ', ' . ($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? ''));
                             $initial = strtoupper(substr($user['first_name'] ?? 'P', 0, 1));
@@ -93,9 +82,7 @@ include __DIR__ . '/controllers/users_list_data.php';
                         <tr class="hover:bg-gray-50 transition group">
                             <td class="p-5">
                                 <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-100 to-teal-100 text-green-600 flex items-center justify-center font-bold text-sm shadow-sm">
-                                        <?= $initial ?>
-                                    </div>
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-100 to-teal-100 text-green-600 flex items-center justify-center font-bold text-sm shadow-sm"><?= $initial ?></div>
                                     <div>
                                         <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($fullName) ?></p>
                                         <p class="text-xs text-gray-400">ID: <?= htmlspecialchars($user['user_id']) ?></p>
@@ -107,44 +94,35 @@ include __DIR__ . '/controllers/users_list_data.php';
                             </td>
                             <td class="p-5">
                                 <div class="flex flex-col gap-1">
-                                    <span class="text-sm font-medium text-gray-700">
-                                        <?= htmlspecialchars(ucfirst($user['gender'] ?? '-')) ?>
-                                    </span>
-                                    <span class="text-xs text-gray-500">
-                                        Age: <?= $age ?> years
-                                    </span>
-                                    <span class="text-xs text-gray-400">
-                                        Born: <?= htmlspecialchars($user['bdate'] ?? 'N/A') ?>
-                                    </span>
+                                    <span class="text-sm font-medium text-gray-700"><?= htmlspecialchars(ucfirst($user['gender'] ?? '-')) ?></span>
+                                    <span class="text-xs text-gray-500">Age: <?= $age ?> years</span>
+                                    <span class="text-xs text-gray-400">Born: <?= htmlspecialchars($user['bdate'] ?? 'N/A') ?></span>
                                 </div>
                             </td>
                             <td class="p-5 max-w-xs">
-                                <p class="text-sm text-gray-600 truncate" title="<?= htmlspecialchars($user['address']) ?>">
-                                    <?= htmlspecialchars($user['address'] ?? 'No address provided') ?>
-                                </p>
+                                <p class="text-sm text-gray-600 truncate" title="<?= htmlspecialchars($user['address']) ?>"><?= htmlspecialchars($user['address'] ?? 'No address provided') ?></p>
                             </td>
                             <td class="p-5 text-center">
                                 <?php if ($user['account_status'] == 1): ?>
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
-                                        Active
-                                    </span>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">Active</span>
                                 <?php else: ?>
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                                        Inactive
-                                    </span>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">Inactive</span>
                                 <?php endif; ?>
                             </td>
                             <td class="p-5">
                                 <div class="flex justify-center gap-2">
-                                    <a href="edit_patient.php?id=<?= $user['user_id'] ?>" class="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-200 transition shadow-sm" title="Edit Details">
-                                        <i data-lucide="pencil" width="16"></i>
-                                    </a>
+                                    <a href="edit_patient.php?id=<?= $user['user_id'] ?>" class="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-200 transition" title="Edit"><i data-lucide="pencil" width="16"></i></a>
                                     
-                                    <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to change access status for this patient?');">
+                                    <form method="POST" class="inline" onsubmit="return confirm('Change status?');">
                                         <input type="hidden" name="user_id" value="<?= $user['user_id'] ?>">
                                         <input type="hidden" name="current_status" value="<?= $user['account_status'] ?>">
-                                        <button type="submit" name="toggle_status" class="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-red-600 hover:border-red-200 transition shadow-sm" title="Toggle Status">
-                                            <i data-lucide="power" width="16"></i>
+                                        <button type="submit" name="toggle_status" class="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-orange-600 hover:border-orange-200 transition" title="Toggle Status"><i data-lucide="power" width="16"></i></button>
+                                    </form>
+
+                                    <form method="POST" class="inline" onsubmit="return confirm('WARNING: Are you sure you want to delete this patient? This action cannot be undone.');">
+                                        <input type="hidden" name="user_id" value="<?= $user['user_id'] ?>">
+                                        <button type="submit" name="delete_user" class="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-red-600 hover:border-red-200 transition" title="Delete Account">
+                                            <i data-lucide="trash-2" width="16"></i>
                                         </button>
                                     </form>
                                 </div>
@@ -159,9 +137,6 @@ include __DIR__ . '/controllers/users_list_data.php';
       </div>
     </main>
   </div>
-
-  <script>
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  </script>
+  <script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
 </body>
 </html>

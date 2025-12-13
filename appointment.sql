@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 02, 2025 at 11:20 AM
+-- Generation Time: Dec 03, 2025 at 02:39 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -36,6 +36,96 @@ CREATE TABLE `tblactivity_log` (
   `ip_address` varchar(45) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `tblactivity_log`
+--
+
+INSERT INTO `tblactivity_log` (`id`, `user_id`, `user_type`, `action_type`, `details`, `ip_address`, `created_at`) VALUES
+(243, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 10:25:31'),
+(244, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\",\"user_type\":\"user\"}', '::1', '2025-12-02 10:26:59'),
+(245, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\",\"user_type\":\"doctor\"}', '::1', '2025-12-02 10:27:41'),
+(246, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 12:45:08'),
+(247, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\",\"user_type\":\"user\"}', '::1', '2025-12-02 12:51:00'),
+(248, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\",\"user_type\":\"doctor\"}', '::1', '2025-12-02 12:54:01'),
+(249, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:40:23'),
+(250, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:41:45'),
+(251, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:42:16'),
+(252, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:42:59'),
+(253, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:43:23'),
+(254, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\",\"user_type\":\"user\"}', '::1', '2025-12-02 13:45:04'),
+(255, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\",\"user_type\":\"user\"}', '::1', '2025-12-02 13:45:44'),
+(256, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:47:00'),
+(257, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:48:11'),
+(258, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:50:19'),
+(259, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 13:51:11'),
+(260, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 14:02:07'),
+(261, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 14:03:07'),
+(262, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 14:09:12'),
+(263, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 14:48:05'),
+(264, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 14:52:04'),
+(265, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 14:52:16'),
+(266, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 15:21:59'),
+(267, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\",\"user_type\":\"user\"}', '::1', '2025-12-02 15:26:36'),
+(268, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\",\"user_type\":\"doctor\"}', '::1', '2025-12-02 15:26:55'),
+(269, 'SYSTEM', 'SYSTEM', 'login_failed', '{\"username\":\"Marduk\",\"reason\":\"invalid_password\"}', '::1', '2025-12-02 15:28:42'),
+(270, 'DOC-1764241542-65', 'doctor', 'login_success', '{\"user_id\":\"DOC-1764241542-65\",\"user_type\":\"doctor\"}', '::1', '2025-12-02 15:28:50'),
+(271, 'SYSTEM', 'SYSTEM', 'login_failed', '{\"username\":\"admin_12345\",\"reason\":\"user_not_found\"}', '::1', '2025-12-02 15:56:07'),
+(272, 'SYSTEM', 'SYSTEM', 'login_failed', '{\"username\":\"admin_12345\",\"reason\":\"user_not_found\"}', '::1', '2025-12-02 15:56:14'),
+(273, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 15:56:27'),
+(274, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 17:21:09'),
+(275, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 17:26:15'),
+(276, 'SYSTEM', 'SYSTEM', 'password_rehashed', '{\"user_id\":\"user0001\"}', '::1', '2025-12-02 17:38:14'),
+(277, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 17:38:14'),
+(278, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 17:49:50'),
+(279, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 18:06:24'),
+(280, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 18:41:42'),
+(281, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 18:42:45'),
+(282, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 18:57:46'),
+(283, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 19:00:05'),
+(284, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 19:10:57'),
+(285, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\",\"user_type\":\"user\"}', '::1', '2025-12-02 19:11:10'),
+(286, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\",\"user_type\":\"doctor\"}', '::1', '2025-12-02 19:23:45'),
+(287, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\",\"user_type\":\"doctor\"}', '::1', '2025-12-02 19:25:25'),
+(288, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 19:25:44'),
+(289, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 19:30:30'),
+(290, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 19:35:30'),
+(291, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 19:47:21'),
+(292, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-02 20:07:03'),
+(293, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-02 20:07:40'),
+(294, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 20:08:10'),
+(295, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 20:08:21'),
+(296, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\",\"user_type\":\"admin\"}', '::1', '2025-12-02 20:08:49'),
+(297, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-02 20:11:09'),
+(298, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\"}', '::1', '2025-12-02 20:11:20'),
+(299, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-02 20:12:17'),
+(300, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-02 20:18:32'),
+(301, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 01:30:29'),
+(302, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 01:33:05'),
+(303, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\"}', '::1', '2025-12-03 01:33:34'),
+(304, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\"}', '::1', '2025-12-03 01:42:22'),
+(305, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 02:40:10'),
+(306, 'SYSTEM', 'SYSTEM', 'login_failed', '{\"username\":\"admin\",\"reason\":\"invalid_password\"}', '::1', '2025-12-03 02:41:22'),
+(307, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 02:47:12'),
+(308, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 02:57:58'),
+(309, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\"}', '::1', '2025-12-03 02:59:36'),
+(310, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\"}', '::1', '2025-12-03 03:00:03'),
+(311, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\"}', '::1', '2025-12-03 03:00:17'),
+(312, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\"}', '::1', '2025-12-03 03:00:32'),
+(313, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 06:24:00'),
+(314, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 06:24:19'),
+(315, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 06:24:42'),
+(316, 'U251203-001', 'user', 'login_success', '{\"user_id\":\"U251203-001\"}', '::1', '2025-12-03 09:56:33'),
+(317, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 11:15:57'),
+(318, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 11:41:59'),
+(319, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 12:01:18'),
+(320, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 12:28:50'),
+(321, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 12:34:27'),
+(322, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 12:34:47'),
+(323, 'user0001', 'admin', 'login_success', '{\"user_id\":\"user0001\"}', '::1', '2025-12-03 12:35:04'),
+(324, 'U251110-006', 'user', 'login_success', '{\"user_id\":\"U251110-006\"}', '::1', '2025-12-03 12:35:20'),
+(325, 'SYSTEM', 'SYSTEM', 'login_failed', '{\"username\":\"asdasasd\",\"reason\":\"user_not_found\"}', '::1', '2025-12-03 12:37:08'),
+(326, 'U251109-005', 'doctor', 'login_success', '{\"user_id\":\"U251109-005\"}', '::1', '2025-12-03 12:57:17');
 
 -- --------------------------------------------------------
 
@@ -71,7 +161,7 @@ INSERT INTO `tblappointment` (`id`, `booking_date`, `booking_time`, `user_id`, `
 (22, '2025-12-06', '07:28:00', 'PAT-1764269096-76', 'U251109-005', 3, 0, NULL),
 (23, '2025-12-01', '08:00:00', 'U251110-006', 'DOC-1764269655-56', 1, 0, NULL),
 (24, '2025-12-13', '09:28:00', 'U251110-006', 'U251109-005', 0, 0, NULL),
-(26, '2025-12-03', '09:00:00', 'PAT-1764269096-76', 'U251109-005', 1, 0, NULL),
+(26, '2025-12-03', '09:00:00', 'PAT-1764269096-76', 'U251109-005', 3, 0, NULL),
 (27, '2025-12-17', '09:00:00', 'U251110-006', 'U251109-005', 0, 0, NULL);
 
 -- --------------------------------------------------------
@@ -102,7 +192,7 @@ INSERT INTO `tblinfo` (`id`, `user_id`, `last_name`, `first_name`, `middle_name`
 (1, 'user0001', 'dela cruz', 'juan', 'cruz', '', '2000-01-01', 'male', 'rosario batangas', '09913575449', ''),
 (14, 'U251107-002', 'Quak', 'Quak', 'V', '', '2025-11-01', 'female', '416', '09162841625', ''),
 (15, 'U251109-005', 'Col.', 'Nina', 'Salas', 'Cardiology', '2004-06-10', 'Female', '416', '09162841625', ''),
-(16, 'U251110-006', 'Armor', 'AK', 'M', '', '2004-12-11', 'Male', '416', '09162841625', ''),
+(16, 'U251110-006', 'King', 'Armor', 'M', '', '2004-12-11', 'Male', '416', '09162841625', ''),
 (23, 'DOC-1764241542-65', 'Craig', 'Marduk', 'K', 'Psychiatrist', '2000-06-08', 'Male', '416', '09162841625', NULL),
 (24, 'PAT-1764246251-74', 'El', 'King', 'V', '', '1997-10-27', 'Male', '416', '09162841625', NULL),
 (25, 'DOC-1764252203-76', 'Fox', 'Steve', 'L', 'Dermatologist', '1990-07-25', 'Male', '416', '09162841625', NULL),
@@ -110,7 +200,8 @@ INSERT INTO `tblinfo` (`id`, `user_id`, `last_name`, `first_name`, `middle_name`
 (27, 'U251127-002', 'Phoenix', 'Paul', 'K', '', '1999-07-07', 'Male', '416', '09162841625', ''),
 (28, 'DOC-1764266367-66', 'Gordo', 'Eddy', 'V', 'Cardiologist', '2000-01-01', 'Male', '416', '09162841625', NULL),
 (29, 'PAT-1764269096-76', 'Bot', 'Alissa', 'K', '', '2008-07-16', 'Female', '416', '09162841625', NULL),
-(30, 'DOC-1764269655-56', 'Six', 'Jack', 'B', 'Orthopedic', '1974-03-13', 'Male', '416', '09162841625', NULL);
+(30, 'DOC-1764269655-56', 'Six', 'Jack', 'B', 'Orthopedic', '1974-03-13', 'Male', '416', '09162841625', NULL),
+(31, 'U251203-001', 'Kazama', 'Jin', '', '', '1982-11-14', 'Male', '416', '09162841625', '');
 
 -- --------------------------------------------------------
 
@@ -168,7 +259,6 @@ CREATE TABLE `tblschedule` (
 
 INSERT INTO `tblschedule` (`id`, `user_id`, `day`, `time`, `time2`, `max_appointment`) VALUES
 (3, 'U251109-005', 6, '07:28:00', '17:31:00', 10),
-(4, 'U251109-005', 7, '08:06:00', '23:00:00', 5),
 (8, 'U251107-001', 5, '20:00:00', '17:00:00', 10),
 (17, 'U251107-001', 6, '08:00:00', '17:00:00', 10),
 (18, 'U251109-005', 1, '09:00:00', '17:00:00', 10),
@@ -227,8 +317,8 @@ CREATE TABLE `tbluser` (
 --
 
 INSERT INTO `tbluser` (`id`, `user_id`, `user_name`, `password`, `user_type`, `status`) VALUES
-(3, 'user0001', 'admin', '$2y$12$vgKSVhXG6nNZzQ.Vmgfk2.5YkNrxnqVURZ.UiaGr2tYoopZkArswS', 'admin', 1),
-(18, 'U251109-005', 'Nina', '$2y$12$LryAZKaSI8/vgvhOx5nqHecR/nWctbnlLITsGpoI7owb1cozcdGe2', 'doctor', 1),
+(3, 'user0001', 'admin', '$2y$12$zWtxvI92m/oYL9tdHaInz.F0rere65xGBsjjgmoKoAdEMa.5rfTiW', 'admin', 1),
+(18, 'U251109-005', 'Nina', '$2y$10$JK6yPSDdfCEXQQlBvWX4P.ErWuyp5miXP0ucyNWwlZAKcinrCWFfe', 'doctor', 1),
 (19, 'U251110-006', 'ak123', '$2y$12$gTJ7JHzzozzTqrK8ZhL9hua1tmlKdlTDMXyTXb.MnYSq.fiLj7bFC', 'user', 1),
 (23, 'DOC-1764241542-65', 'Marduk', '$2y$10$7VJQuN1xNoL35ZXEhm1KR.GEx6GPO5dvM3K5tpl5CUTewRO6NH8.a', 'doctor', 1),
 (24, 'PAT-1764246251-74', 'king', '$2y$10$J0p.OR3nebztny/3slNs/e2QcSyGH2EqQf0scSu9GkFyTt.hdIJQO', 'user', 1),
@@ -237,7 +327,8 @@ INSERT INTO `tbluser` (`id`, `user_id`, `user_name`, `password`, `user_type`, `s
 (27, 'U251127-002', 'Paul', '$2y$10$.tSDSo29DlqJl3Iaw82ZIuU0wsqgnAytEh/f.U1twFjk9m7ZRCh3q', 'user', 1),
 (28, 'DOC-1764266367-66', 'Eddy', '$2y$10$bnd8A04OXhZE6GaVth8GhOjmztloAMBf.JurQaPceV9ZsnBpDIEpO', 'doctor', 1),
 (29, 'PAT-1764269096-76', 'Alissa', '$2y$10$NFlTQR.KCntxR4gOcYoUU.Kdya/Y0PzYkpUYKkN5DESl8hi9pAu32', 'user', 1),
-(30, 'DOC-1764269655-56', 'Jack', '$2y$10$U2VSwVsBetTDBp2VkOszs.PKnPmVGIZrnqjJ8vqznpZTtBktEvWgK', 'doctor', 1);
+(30, 'DOC-1764269655-56', 'Jack', '$2y$10$U2VSwVsBetTDBp2VkOszs.PKnPmVGIZrnqjJ8vqznpZTtBktEvWgK', 'doctor', 1),
+(31, 'U251203-001', 'Jin123', '$2y$10$UNje8nZH1hVOta8km7pAbeIagHJJiSrqd/TLvDNVL0W53ssj/k0h6', 'user', 1);
 
 -- --------------------------------------------------------
 
@@ -297,7 +388,8 @@ INSERT INTO `tbl_medical_records` (`id`, `appointment_id`, `diagnosis`, `prescri
 (4, 13, 'Check up', 'Paracetamol', 'Umay', '2025-11-28 18:26:10'),
 (5, 18, 'Test', 'Test', 'Test', '2025-11-29 08:18:22'),
 (6, 22, 'Test', 'Test', 'Test', '2025-11-29 20:15:23'),
-(7, 16, 'Check up', 'Test', 'Test', '2025-12-01 08:29:38');
+(7, 16, 'Check up', 'Test', 'Test', '2025-12-01 08:29:38'),
+(8, 26, 'Test', 'Test', 'Test', '2025-12-03 01:43:22');
 
 --
 -- Indexes for dumped tables
@@ -375,7 +467,7 @@ ALTER TABLE `tbl_medical_records`
 -- AUTO_INCREMENT for table `tblactivity_log`
 --
 ALTER TABLE `tblactivity_log`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=243;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=327;
 
 --
 -- AUTO_INCREMENT for table `tblappointment`
@@ -387,7 +479,7 @@ ALTER TABLE `tblappointment`
 -- AUTO_INCREMENT for table `tblinfo`
 --
 ALTER TABLE `tblinfo`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `tblnoappointment`
@@ -399,7 +491,7 @@ ALTER TABLE `tblnoappointment`
 -- AUTO_INCREMENT for table `tblschedule`
 --
 ALTER TABLE `tblschedule`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
 
 --
 -- AUTO_INCREMENT for table `tblspecialization`
@@ -411,7 +503,7 @@ ALTER TABLE `tblspecialization`
 -- AUTO_INCREMENT for table `tbluser`
 --
 ALTER TABLE `tbluser`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `tbl_health_profile`
@@ -423,7 +515,7 @@ ALTER TABLE `tbl_health_profile`
 -- AUTO_INCREMENT for table `tbl_medical_records`
 --
 ALTER TABLE `tbl_medical_records`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- Constraints for dumped tables
